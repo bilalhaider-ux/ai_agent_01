@@ -20,3 +20,7 @@ Thumbs.db
 # IDE
 .idea/
 .vscode/
+
+# Frontend build output
+frontend/node_modules/
+frontend/dist/
