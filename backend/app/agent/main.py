@@ -32,6 +32,8 @@ def run_agent(
     if model:
         if provider == "mistral":
             os.environ["MISTRAL_MODEL"] = model
+        elif provider == "gemini":
+            os.environ["GEMINI_MODEL"] = model
         elif provider == "openai":
             os.environ["OPENAI_MODEL"] = model
         else:
@@ -165,7 +167,7 @@ def main():
     parser = argparse.ArgumentParser(description="Autonomous Data Analytics AI Agent (LangGraph)")
     parser.add_argument("--dataset", type=str, default="backend/data/sample_sales_data.csv", help="Path to CSV or Parquet file")
     parser.add_argument("--query", type=str, default="Analyze product category revenue and customer rating correlation with returns", help="Analytical question")
-    parser.add_argument("--provider", type=str, choices=["mistral", "ollama", "openai", "mock"], default=None, help="LLM Provider")
+    parser.add_argument("--provider", type=str, choices=["mistral", "gemini", "ollama", "openai", "mock"], default=None, help="LLM Provider")
     parser.add_argument("--model", type=str, default=None, help="LLM Model name")
     parser.add_argument("--output", type=str, default="decision_ready_artifact.md", help="Output artifact path")
     parser.add_argument("--no-html", action="store_true", help="Disable HTML report export")

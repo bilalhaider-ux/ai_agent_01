@@ -29,6 +29,16 @@ def get_llm(
             api_key=cfg.mistral_api_key,
             temperature=temperature,
         )
+    if selected_provider == "gemini":
+        if not cfg.gemini_api_key:
+            raise ValueError("GEMINI_API_KEY is required when LLM_PROVIDER=gemini.")
+        from langchain_google_genai import ChatGoogleGenerativeAI
+
+        return ChatGoogleGenerativeAI(
+            model=model or cfg.gemini_model,
+            google_api_key=cfg.gemini_api_key,
+            temperature=temperature,
+        )
     if selected_provider == "openai":
         if not cfg.openai_api_key:
             raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai.")

@@ -1,0 +1,21 @@
+order_id,product_category,product_name,customer_rating,total_revenue,units_sold,returned,discount_pct,order_date,customer_segment
+1001,Electronics,Wireless Headphones,4.8,1299.99,2,No,5,2026-01-05,Premium
+1002,Fashion,Running Shoes,4.1,189.50,1,Yes,15,2026-01-07,Standard
+1003,Home & Kitchen,Air Fryer,4.5,249.99,1,No,10,2026-01-09,Standard
+1004,Beauty,Skincare Set,3.9,89.75,3,Yes,20,2026-01-11,Standard
+1005,Sports,Yoga Mat,4.6,74.90,2,No,8,2026-01-13,Premium
+1006,Electronics,Smart Watch,4.7,599.00,1,No,7,2026-01-15,Premium
+1007,Fashion,Denim Jacket,3.8,159.99,1,Yes,25,2026-01-17,Standard
+1008,Home & Kitchen,Coffee Maker,4.3,179.95,1,No,12,2026-01-19,Standard
+1009,Beauty,Hair Dryer,4.0,129.00,2,No,5,2026-01-21,Premium
+1010,Sports,Adjustable Dumbbells,4.4,319.80,2,No,10,2026-01-23,Premium
+1011,Electronics,Tablet,4.6,899.00,1,No,6,2026-01-25,Premium
+1012,Fashion,Casual Shirt,3.7,59.95,2,Yes,30,2026-01-27,Standard
+1013,Home & Kitchen,Blender,4.2,119.90,1,No,9,2026-01-29,Standard
+1014,Beauty,Perfume,4.7,145.00,1,No,3,2026-02-01,Premium
+1015,Sports,Resistance Bands,4.1,49.99,3,Yes,18,2026-02-03,Standard
+1016,Electronics,Portable Speaker,4.5,219.99,1,No,11,2026-02-05,Premium
+1017,Fashion,Winter Coat,4.0,279.00,1,No,20,2026-02-07,Standard
+1018,Home & Kitchen,Robot Vacuum,4.8,499.00,1,No,8,2026-02-09,Premium
+1019,Beauty,Makeup Kit,3.6,99.50,2,Yes,22,2026-02-11,Standard
+1020,Sports,Football,4.3,39.90,2,No,5,2026-02-13,Standard

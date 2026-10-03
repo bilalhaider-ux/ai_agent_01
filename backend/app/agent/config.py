@@ -13,7 +13,7 @@ from dotenv import load_dotenv
 # Load .env file if available
 load_dotenv()
 
-ProviderType = Literal["mistral", "ollama", "openai", "mock"]
+ProviderType = Literal["mistral", "gemini", "ollama", "openai", "mock"]
 
 
 @dataclass
@@ -23,6 +23,8 @@ class AgentConfig:
     openai_model: Optional[str] = None
     mistral_api_key: Optional[str] = None
     mistral_model: Optional[str] = None
+    gemini_api_key: Optional[str] = None
+    gemini_model: Optional[str] = None
     ollama_base_url: Optional[str] = None
     ollama_model: Optional[str] = None
     max_retries: Optional[int] = None
@@ -39,6 +41,10 @@ class AgentConfig:
             self.mistral_api_key = os.getenv("MISTRAL_API_KEY")
         if not self.mistral_model:
             self.mistral_model = os.getenv("MISTRAL_MODEL", "mistral-small-latest")
+        if self.gemini_api_key is None:
+            self.gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+        if not self.gemini_model:
+            self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
         if not self.ollama_base_url:
             self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         if not self.ollama_model:
@@ -83,6 +89,16 @@ def get_llm(
             temperature=temperature,
         )
         
+    elif selected_provider == "gemini":
+        from langchain_google_genai import ChatGoogleGenerativeAI
+        if not cfg.gemini_api_key:
+            raise ValueError("GEMINI_API_KEY is required when LLM_PROVIDER=gemini.")
+        return ChatGoogleGenerativeAI(
+            model=model or cfg.gemini_model,
+            google_api_key=cfg.gemini_api_key,
+            temperature=temperature,
+        )
+
     elif selected_provider == "openai":
         from langchain_openai import ChatOpenAI
         api_key = cfg.openai_api_key

@@ -13,6 +13,7 @@ class DatasetMinifiedContext(BaseModel):
     null_counts: Dict[str, int] = Field(description="Count of null values per column")
     sample_markdown: str = Field(description="Markdown preview of the first 3-5 rows")
     summary_stats_markdown: str = Field(description="Markdown summary statistics for numerical columns")
+    duplicate_row_count: int = Field(default=0, description="Number of duplicate rows")
 
 
 class AnalyticalPlan(BaseModel):

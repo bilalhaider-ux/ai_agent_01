@@ -19,6 +19,7 @@ class AnalysisResponse(BaseModel):
     recommended_actions: list[str] = []
     metrics: dict[str, Any] = {}
     grounding: dict[str, Any] | None = None
+    generated_code: str | None = None
     charts: list[str] = []
     markdown_report: str | None = None
     html_report: str | None = None
@@ -32,5 +33,6 @@ async def analyze(query: str = Form(...), dataset: UploadFile = File(...), provi
     dataset_path = await save_upload(dataset)
     result = run_analysis(dataset_path, query.strip(), provider, model)
     if result["status"] == "failed":
-        return JSONResponse(status_code=status.HTTP_502_BAD_GATEWAY, content=result)
+        response_status = status.HTTP_429_TOO_MANY_REQUESTS if result.get("error", {}).get("type") == "ProviderRateLimitError" else status.HTTP_502_BAD_GATEWAY
+        return JSONResponse(status_code=response_status, content=result)
     return AnalysisResponse(**result)

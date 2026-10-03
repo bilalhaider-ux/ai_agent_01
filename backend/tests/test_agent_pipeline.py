@@ -18,6 +18,7 @@ from app.agent.minifier import minify_dataset
 from app.agent.executor import execute_sandboxed_code
 from app.agent.graph import build_data_agent_graph, route_execution, route_retry
 from app.agent.contracts import DatasetMinifiedContext, ExecutionResult
+from app.agent.nodes import _clean_code_fences
 
 
 class TestAgentPipeline(unittest.TestCase):
@@ -107,6 +108,10 @@ invalid = df["non_existent_column_xyz"].sum()
         self.assertEqual(route_retry({"retry_count": 2}), "code_generation")
         self.assertEqual(route_retry({"retry_count": 3}), "fatal_error")
         print("\n[TEST PASS] Graph Compilation & Routing verified.")
+
+    def test_provider_structured_content_is_normalized(self):
+        content = [{"type": "text", "text": "```python\nprint('ok')\n```"}]
+        self.assertEqual(_clean_code_fences(content), "print('ok')")
 
     def test_full_agent_graph_invocation(self):
         """Test full LangGraph StateGraph invocation through all stages."""

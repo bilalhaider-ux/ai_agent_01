@@ -22,6 +22,11 @@ class TestApi(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "MISTRAL_API_KEY"):
                 get_llm(provider="mistral")
 
+    def test_gemini_requires_key(self):
+        with patch.dict(os.environ, {"GEMINI_API_KEY": "", "GOOGLE_API_KEY": ""}, clear=False):
+            with self.assertRaisesRegex(ValueError, "GEMINI_API_KEY"):
+                get_llm(provider="gemini")
+
     def test_mock_analysis_api_returns_reports(self):
         client = TestClient(app)
         dataset = Path(__file__).parent.parent / "data" / "sample_sales_data.csv"
@@ -37,6 +42,11 @@ class TestApi(unittest.TestCase):
         self.assertTrue(result["charts"])
         self.assertEqual(result["grounding"]["status"], "verified_metrics_only")
         self.assertEqual(result["grounding"]["authoritative_metrics"], result["metrics"])
+        self.assertEqual(result["grounding"]["decision_status"], "pending_human_review")
+        self.assertIn("dataset_sha256", result["grounding"]["provenance"])
+        self.assertEqual(result["grounding"]["drift_monitoring"], "baseline_not_available")
+        self.assertTrue(result["grounding"]["reproducibility"]["generated_code_sha256"])
+        self.assertTrue(result["generated_code"])
         self.assertIn("# Analytical Decision Report", result["markdown_report"])
         self.assertIn("## Machine-Verified Evidence", result["markdown_report"])
         self.assertIn("overall_return_rate_pct", result["markdown_report"])
@@ -61,6 +71,20 @@ class TestApi(unittest.TestCase):
             files={"dataset": ("dataset.exe", b"not a dataset", "application/octet-stream")},
         )
         self.assertEqual(response.status_code, 400)
+
+    def test_provider_rate_limit_has_clear_response(self):
+        with patch("app.api.routes_analysis.run_analysis", return_value={
+            "analysis_id": "rate-limited",
+            "status": "failed",
+            "error": {"type": "ProviderRateLimitError", "message": "Mistral rate limit or quota exceeded."},
+        }):
+            response = TestClient(app).post(
+                "/api/v1/analyze",
+                data={"query": "analyze", "provider": "mistral"},
+                files={"dataset": ("sample.csv", b"a,b\n1,2\n", "text/csv")},
+            )
+        self.assertEqual(response.status_code, 429)
+        self.assertIn("rate limit", response.json()["error"]["message"])
 
 
 if __name__ == "__main__":

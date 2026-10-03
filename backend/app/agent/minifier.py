@@ -61,6 +61,8 @@ def minify_dataset(file_path: Union[str, Path], sample_size: int = 5) -> Dataset
         summary_stats_markdown = str(describe_df)
     except Exception:
         summary_stats_markdown = "Summary statistics could not be computed automatically."
+
+    duplicate_row_count = int(df.is_duplicated().sum())
         
     return DatasetMinifiedContext(
         row_count=row_count,
@@ -69,6 +71,7 @@ def minify_dataset(file_path: Union[str, Path], sample_size: int = 5) -> Dataset
         dtypes=dtypes,
         null_counts=null_counts,
         sample_markdown=sample_markdown,
-        summary_stats_markdown=summary_stats_markdown
+        summary_stats_markdown=summary_stats_markdown,
+        duplicate_row_count=duplicate_row_count,
     )
 
