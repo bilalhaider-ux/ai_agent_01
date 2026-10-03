@@ -39,6 +39,18 @@ flowchart TD
 
 ## 🚀 Getting Started
 
+### Web interface
+
+A responsive React + Vite frontend is available in [`frontend/`](./frontend). It includes the complete analysis workflow, live agent-stage visibility, reports, datasets, exports, provider controls, responsive navigation, and Firebase Hosting configuration.
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+See [`frontend/README.md`](./frontend/README.md) for backend integration and Firebase deployment notes.
+
 ### Prerequisites
 
 - **Python 3.10+**
