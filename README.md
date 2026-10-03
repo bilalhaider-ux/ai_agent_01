@@ -1,180 +1,80 @@
-# AI Agent 01 — Autonomous Data Analytics Agent (LangGraph)
+# AI Agent 01
 
-An autonomous data analytics AI agent built with **LangGraph**, **Polars**, **SciPy**, and **Matplotlib**. Given a tabular dataset and an analytical question, the agent plans, generates, executes, and self-corrects Python analysis code in a sandboxed runtime, then produces a **decision-ready report** in Markdown and HTML — no human intervention required.
+AI Agent 01 is a LangGraph-powered data analytics service. It profiles an uploaded dataset, asks an LLM to plan and generate Polars/SciPy/Matplotlib analysis code, executes that code in a timed child process, retries failures, and returns a decision-ready report with metrics and embedded charts.
 
-The agent supports a **dual LLM strategy**: a fully offline local model via [Ollama](https://ollama.com) or a cloud model via the OpenAI API, plus a mock engine for testing.
+## Architecture
 
-> 📚 Full architectural deep-dive: [`AI_AGENT_DEVELOPMENT_GUIDE.md`](./AI_AGENT_DEVELOPMENT_GUIDE.md)
+The FastAPI application lives in `backend/app`. `app/agent` contains the existing six-stage workflow: context minification, intent and plan, code generation, isolated execution, self-correction, and output synthesis. `app/services` handles uploads, pipeline invocation, and report formatting. The frontend directory is intentionally empty until a client is added.
 
----
-
-## ✨ Features
-
-- **6-stage cyclic LangGraph workflow** — natural-language query → statistical insight to decision-ready artifact
-- **Context Minification** — profiles datasets (schema, dtypes, nulls, cardinality, 5-number summaries) into <2% of the raw token footprint using Polars
-- **Structured planning** — Pydantic-validated analytical plans (hypotheses, transformations, statistical methods, visualization plan)
-- **Sandboxed code execution** — LLM-generated code runs in an isolated `subprocess` with a wall-clock timeout; the orchestrator never executes untrusted code in its own process
-- **Autonomous self-correction** — executes up to `MAX_RETRY_COUNT` (default 3) repair loops feeding tracebacks back to the code generator
-- **Dual LLM providers** — local Ollama (`llama3.2`, `qwen2.5-coder`, ...) or OpenAI (`gpt-4o-mini`, ...), switchable at runtime
-- **Rich reports** — executive summaries, statistical significance (p-values, correlations), and Base64-embedded charts exported to Markdown **and** styled HTML
-- **Mock LLM engine** — deterministic offline execution for CI and unit tests
-- **Windows-friendly** — UTF-8 output handling and headless `matplotlib` (`Agg`) rendering
-
-## 🏗️ How It Works
-
-```mermaid
-flowchart TD
-    Input["Input: User Query + Raw Dataset"] --> S1["Stage 1: Context Minification<br/>(Extract Schema, Dtypes, Sample, Nulls)"]
-    S1 --> S2["Stage 2: Intent & Plan Contract<br/>(Pydantic Structured Plan)"]
-    S2 --> S3["Stage 3: Sandboxed Code Generation<br/>(Target: Polars / SciPy / Matplotlib)"]
-    S3 --> S4["Stage 4: Isolated Execution Runtime<br/>(Subprocess / In-Memory DataFrame)"]
-    S4 --> Decision{"Execution Success?"}
-    Decision -- "No" --> S5["Stage 5: Self-Correction Loop<br/>(Capture Traceback & Stderr)"]
-    S5 --> RetryCheck{"Retry Count < 3?"}
-    RetryCheck -- "Yes" --> S3
-    RetryCheck -- "No" --> Fatal["Raise Fatal Execution Error"]
-    Decision -- "Yes" --> S6["Stage 6: Output Synthesis<br/>(Format Metrics & Render Base64 Charts)"]
-    S6 --> Final["Final Decision-Ready Artifact Ready"]
-```
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- **Python 3.10+**
-- An LLM runtime, **either**:
-  - **Ollama** (default) — installed and running locally on `http://localhost:11434` with a model pulled (e.g. `ollama pull llama3.2`), **or**
-  - **OpenAI** — an API key (`sk-...`)
-
-### Installation
+## Local Setup
 
 ```bash
-# 1. Clone the repository
-git clone https://github.com/bilalhaider-ux/ai_agent_01.git
-cd ai_agent_01
-
-# 2. Create and activate a virtual environment
-python -m venv .venv
-# Windows:
-.venv\Scripts\activate
-# macOS / Linux:
+python3 -m venv .venv
 source .venv/bin/activate
-
-# 3. Install dependencies
 pip install -r requirements.txt
-
-# 4. Configure environment
-cp .env.example .env   # Windows: copy .env.example .env
-# Then edit .env to set your provider, model, and (if OpenAI) API key
+cp backend/.env.example .env
+export PYTHONPATH=backend
+uvicorn app.main:app --reload --app-dir backend
 ```
 
-### Configuration
-
-All runtime behaviour is driven by environment variables (see [`.env.example`](./.env.example)):
-
-| Variable | Default | Description |
-| :--- | :--- | :--- |
-| `LLM_PROVIDER` | `ollama` | `ollama`, `openai`, or `mock` |
-| `OPENAI_API_KEY` | — | Required when `LLM_PROVIDER=openai` |
-| `OPENAI_MODEL` | `gpt-4o-mini` | OpenAI model name |
-| `OLLAMA_BASE_URL` | `http://localhost:11434` | Ollama server endpoint |
-| `OLLAMA_MODEL` | `llama3.2` | Ollama model name |
-| `MAX_RETRY_COUNT` | `3` | Self-correction retry budget |
-| `EXECUTION_TIMEOUT_SECONDS` | `45` | Sandboxed runtime timeout |
-
-### Usage
+Use `LLM_PROVIDER=mock` for an offline run and automated tests. Production uses Mistral:
 
 ```bash
-# Run with the bundled sample dataset and Ollama (default)
-python -m src.main
-
-# Run with a custom dataset and query (local Ollama)
-python -m src.main \
-  --dataset data/sample_sales_data.csv \
-  --query "Analyze product category revenue and customer rating correlation with returns" \
-  --provider ollama --model llama3.2
-
-# Run with OpenAI
-python -m src.main \
-  --dataset data/sample_sales_data.csv \
-  --query "Analyze revenue drivers by category" \
-  --provider openai --model gpt-4o-mini
-
-# Run fully offline with the mock LLM (no server required)
-python -m src.main --provider mock
-
-# Disable HTML export
-python -m src.main --no-html
-
-# Custom output artifact path
-python -m src.main --output results/report.md
+export LLM_PROVIDER=mistral
+export MISTRAL_API_KEY=your-key
+export MISTRAL_MODEL=mistral-small-latest
 ```
 
-**CLI options**
+## API
 
-| Flag | Default | Description |
-| :--- | :--- | :--- |
-| `--dataset` | `data/sample_sales_data.csv` | Path to CSV file |
-| `--query` | *(built-in analytical question)* | The question to answer |
-| `--provider` | from `.env` | `ollama`, `openai`, or `mock` |
-| `--model` | from `.env` | Model name override |
-| `--output` | `decision_ready_artifact.md` | Markdown artifact path |
-| `--no-html` | `False` | Skip HTML report export |
+- `GET /health` checks service availability.
+- `POST /api/v1/analyze` accepts multipart `query`, `dataset`, and optional `provider`/`model` fields.
+- `GET /api/v1/reports/{analysis_id}` returns the complete structured result.
+- `GET /api/v1/reports/{analysis_id}/markdown` returns the Markdown report.
+- `GET /api/v1/reports/{analysis_id}/html` returns the HTML report.
 
-### Output
+Supported uploads are CSV, XLSX, Parquet, TSV, JSON, and JSONL. Uploads are limited by `MAX_UPLOAD_SIZE_BYTES` (50 MiB by default), stored temporarily, and removed after analysis. Filenames are validated and API keys are never sent to a frontend.
 
-The agent writes two artifacts to the current directory:
+## Configuration
 
-- `decision_ready_artifact.md` — Markdown report with metrics, findings, and charts
-- `decision_ready_artifact.html` — styled, browser-ready version of the same report
+| Variable | Purpose |
+| --- | --- |
+| `LLM_PROVIDER` | `mistral` for production or `mock` for tests |
+| `MISTRAL_API_KEY` | Required for Mistral; never commit it |
+| `MISTRAL_MODEL` | Defaults to `mistral-small-latest` |
+| `MAX_RETRY_COUNT` | Code self-correction budget |
+| `EXECUTION_TIMEOUT_SECONDS` | Child-process execution limit |
+| `CORS_ALLOWED_ORIGINS` | Comma-separated browser origins |
+| `MAX_UPLOAD_SIZE_BYTES` | Maximum dataset size |
 
-An example result is committed in [`decision_ready_artifact.md`](./decision_ready_artifact.md).
-
-## 🧪 Testing
-
-Tests use Python's built-in `unittest` framework and require **no LLM server** (the mock engine is used for full-pipeline invocation):
+## Testing
 
 ```bash
-python -m unittest discover -s tests -v
+PYTHONPATH=backend .venv/bin/python -m unittest discover -s backend/tests -v
 ```
 
-## 📁 Project Structure
+The tests use Mock and do not require Mistral access. A local mock analysis can be run through the API with the sample file at `backend/data/sample_sales_data.csv`.
 
-```
-ai_agent_01/
-├── .venv/                         # Virtual environment
-├── .env                           # API keys & model configs (git-ignored)
-├── .env.example                   # Configuration template
-├── requirements.txt               # Python dependencies
-├── AI_AGENT_DEVELOPMENT_GUIDE.md  # Architectural deep-dive
-├── data/
-│   └── sample_sales_data.csv      # Sample enterprise dataset
-├── src/
-│   ├── __init__.py
-│   ├── config.py                  # Dual LLM factory (Ollama / OpenAI / mock)
-│   ├── contracts.py               # Pydantic schemas (Plan, Context, Metrics)
-│   ├── state.py                   # LangGraph AgentState
-│   ├── minifier.py                # Polars-based dataset context minifier (Stage 1)
-│   ├── mock_llm.py                # Deterministic offline LLM for testing
-│   ├── executor.py                # Sandboxed subprocess runtime (Stage 4)
-│   ├── nodes.py                   # The 6 workflow stages + fatal-error node
-│   ├── graph.py                   # LangGraph StateGraph, routing, and retry loop
-│   └── main.py                    # CLI entrypoint & report generation
-├── tests/
-│   └── test_agent_pipeline.py     # Unit + integration test suite
-└── decision_ready_artifact.md     # Sample generated report
-```
+## Heroku
 
-## 🔒 Security Notes
+The root `Procfile` runs Gunicorn with Uvicorn workers. Set `MISTRAL_API_KEY`, `MISTRAL_MODEL`, `LLM_PROVIDER`, `MAX_RETRY_COUNT`, `EXECUTION_TIMEOUT_SECONDS`, and `CORS_ALLOWED_ORIGINS` as Heroku Config Vars. Heroku's local filesystem is ephemeral: reports are held in process memory and are not durable across restarts or dyno changes. No automatic deployment is configured.
 
-- LLM-generated code **never** runs in the orchestrator's process — it executes in an isolated child `subprocess` with a strict timeout and is cleaned up afterward.
-- Headless `matplotlib` (`Agg`) avoids GUI crashes on servers and background tasks.
-- Never commit your real `.env` file — it contains API keys.
+## Limitations and Security
 
-## 🤝 Contributing
+Generated code runs in a separate subprocess with a timeout and temporary working directory. This is a constrained execution boundary, not a hardened container or arbitrary-code security guarantee; production deployments should add stronger isolation for untrusted multi-tenant workloads. Report retention is not persistent, and the current API performs analysis synchronously.
 
-Contributions are welcome! See [`CONTRIBUTING.md`](./CONTRIBUTING.md) for guidelines on reporting issues, setting up your environment, coding style, and the pull-request workflow.
+## Decision-Grade EDA Protocol
 
-## 📄 License
+The API marks results as `verified_metrics_only`. Downstream calculations must use `grounding.authoritative_metrics`, never numbers copied from the LLM narrative. The report includes a Machine-Verified Evidence section generated from the successful isolated execution result.
 
-This project is licensed under the [MIT License](./LICENSE).
+1. **Data contract:** record file type, schema, row count, null counts, and profiling errors before analysis.
+2. **Metric provenance:** every decision metric must have a stable key and be copied from execution output.
+3. **No evidence, no claim:** missing values remain unknown; the agent must not fill them with zero or estimates.
+4. **Statistical discipline:** correlation is not causation; significance claims require an observed test statistic and p-value.
+5. **Reproducibility:** retain the query, provider/model, plan, generated code, retry trace, metrics, and chart artifacts with an analysis id in a durable store before production use.
+6. **Decision gate:** recommendations are advisory until a human reviews the evidence, assumptions, sample size, data quality, and business impact.
+7. **Drift monitoring:** compare schema, row counts, null rates, metric distributions, and model output across runs before accepting automated decisions.
+
+## License
+
+MIT. See [LICENSE](LICENSE).

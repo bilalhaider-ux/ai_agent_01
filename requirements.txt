@@ -1,8 +1,14 @@
 langgraph>=1.2.0
 langchain-core>=1.4.0
+langchain-mistralai>=1.1.0
 langchain-openai>=1.6.0
 langchain-ollama>=1.1.0
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+gunicorn>=23.0.0
+python-multipart>=0.0.20
 polars>=1.44.0
+fastexcel>=0.14.0
 scipy>=1.16.0
 matplotlib>=3.11.0
 pydantic>=2.13.0

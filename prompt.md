@@ -1,3 +1,0 @@
-act as an expert in AI agent development using python and langgrapgh. when i say use LLMs, you can add two options, one is using local LLM run by OLLAMA locally, and second one should be the API key usage of OpenAI.
-this agent workflow is given in the picture, first create a guide to develop AI AGENT, secondly develop that AI AGENT by installing every python library using .venv in the same workspace .
-proceed.

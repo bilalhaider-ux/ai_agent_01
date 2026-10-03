@@ -12,6 +12,8 @@ venv/
 
 # Agent sandbox runtime (ephemeral generated scripts)
 .sandbox_runtime/
+backend/.pytest_cache/
+backend/reports/
 
 # OS
 .DS_Store
