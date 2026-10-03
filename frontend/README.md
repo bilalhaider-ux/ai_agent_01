@@ -9,11 +9,11 @@ npm install
 npm run dev
 ```
 
-The interface currently uses the repository's sample analysis as a complete interactive demo. File selection, provider selection, pipeline progress, navigation, report tabs, theme switching, and report exports are functional in the browser.
+The interface currently uses the repository's sample analysis as a complete interactive demo. File selection, provider selection, pipeline progress, navigation, report tabs, theme switching, and report exports are functional in the browser. The production FastAPI service is available under `backend/app`.
 
 ## Backend handoff
 
-The Python project currently exposes a CLI rather than an HTTP API. To connect live runs, expose the existing `app.stream(initial_state)` workflow through a small API and map its node events to the six activity stages shown in the interface:
+To connect live runs, set the frontend API origin and map the FastAPI analysis response to the six activity stages shown in the interface:
 
 1. `minification`
 2. `intent_plan`
