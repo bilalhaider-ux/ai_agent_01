@@ -9,7 +9,14 @@ from app.api.routes_reports import router as reports_router
 
 app = FastAPI(title="AI Agent 01 Analytics API", version="1.0.0")
 origins = [origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
-app.add_middleware(CORSMiddleware, allow_origins=origins, allow_credentials=True, allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+	CORSMiddleware,
+	allow_origins=origins,
+	allow_credentials=True,
+	allow_methods=["*"],
+	allow_headers=["*"],
+	expose_headers=["X-RateLimit-Limit", "X-RateLimit-Remaining", "X-RateLimit-Reset"],
+)
 app.include_router(health_router)
 app.include_router(analysis_router)
 app.include_router(reports_router)

@@ -25,6 +25,7 @@ class AgentConfig:
     mistral_model: Optional[str] = None
     gemini_api_key: Optional[str] = None
     gemini_model: Optional[str] = None
+    gemini_fallback_models: Optional[list[str]] = None
     ollama_base_url: Optional[str] = None
     ollama_model: Optional[str] = None
     max_retries: Optional[int] = None
@@ -45,6 +46,12 @@ class AgentConfig:
             self.gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
         if not self.gemini_model:
             self.gemini_model = os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        if self.gemini_fallback_models is None:
+            self.gemini_fallback_models = [
+                item.strip()
+                for item in os.getenv("GEMINI_FALLBACK_MODELS", "").split(",")
+                if item.strip()
+            ]
         if not self.ollama_base_url:
             self.ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
         if not self.ollama_model:

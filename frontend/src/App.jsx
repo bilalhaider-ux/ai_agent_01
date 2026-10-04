@@ -1,204 +1,95 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
-import {
-  Activity, ArrowDownToLine, ArrowRight, BarChart3, BrainCircuit, Check,
-  ChevronDown, ChevronRight, CircleHelp, Clock3, Code2, Database, FileBarChart,
-  FileText, History, LayoutDashboard, Menu, Moon, MoreHorizontal, Play, Plus,
-  RotateCcw, Search, Settings, ShieldCheck, Sparkles, Sun, Table2, UploadCloud,
-  X, Zap,
-} from 'lucide-react'
-import { useLiquidGlass } from './hooks/useLiquidGlass'
+import { useEffect, useState } from 'react'
+import { ArrowLeft, ArrowUpRight, BarChart3, Check, ChevronRight, Download, FileText, LoaderCircle, Play, Plus, Save, ShieldCheck, UploadCloud, X, Zap } from 'lucide-react'
+import { listReports, removeReport, saveReport } from './lib/storage'
 
-const pipeline = [
-  ['Context minification', 'Profiled schema, nulls and distributions'],
-  ['Intent & plan', 'Formed 3 hypotheses and selected methods'],
-  ['Code generation', 'Created Polars + SciPy analysis'],
-  ['Isolated execution', 'Completed safely in 4.8 seconds'],
-  ['Self-correction', 'No repair needed'],
-  ['Output synthesis', 'Decision brief generated'],
-]
+const API_URL = import.meta.env.VITE_AGENT_API_URL || 'http://127.0.0.1:8000'
+const DEFAULT_QUERY = 'Analyze revenue by product category and identify return risks'
+const STEPS = ['Profile dataset', 'Build analytical plan', 'Generate code', 'Run isolated analysis', 'Synthesize decision brief']
 
-const reports = [
-  { title: 'Revenue drivers & return risk', dataset: 'sample_sales_data.csv', date: 'Today, 9:42 PM', status: 'Ready' },
-  { title: 'Regional margin performance', dataset: 'sales_q2.csv', date: 'Sep 29, 4:18 PM', status: 'Ready' },
-  { title: 'Customer cohort retention', dataset: 'customers.csv', date: 'Sep 27, 11:03 AM', status: 'Ready' },
-]
-
-const categoryData = [
-  { name: 'Electronics', value: 100, amount: '$8.2k' },
-  { name: 'Home & kitchen', value: 44, amount: '$3.6k' },
-  { name: 'Sports', value: 38, amount: '$3.1k' },
-  { name: 'Fashion', value: 24, amount: '$2.0k' },
-  { name: 'Beauty', value: 18, amount: '$1.5k' },
-]
-
-function Logo() {
-  return <div className="brand-mark" aria-hidden="true"><span /><span /><span /></div>
-}
-
-function GlassPanel({ className = '', children, optics = {}, ...props }) {
-  const ref = useLiquidGlass({ scale: -72, chroma: 4, blur: 2, fallbackBlur: 18, ...optics })
-  return <div ref={ref} className={`glass ${className}`} {...props}>{children}</div>
-}
-
-function Sidebar({ page, setPage, open, close }) {
-  const nav = [
-    ['analysis', LayoutDashboard, 'Workspace'],
-    ['reports', FileBarChart, 'Reports'],
-    ['datasets', Database, 'Datasets'],
-  ]
-  return <aside className={`sidebar ${open ? 'sidebar-open' : ''}`}>
-    <div className="brand"><Logo /><span>Lumen</span><button className="icon-button mobile-close" onClick={close}><X size={19}/></button></div>
-    <nav className="side-nav" aria-label="Primary navigation">
-      <p className="eyebrow">WORKSPACE</p>
-      {nav.map(([id, Icon, label]) => <button key={id} className={page === id ? 'active' : ''} onClick={() => { setPage(id); close() }}><Icon size={18}/><span>{label}</span>{id === 'reports' && <small>3</small>}</button>)}
-      <p className="eyebrow history-label">RECENT</p>
-      <button className="recent-item" onClick={() => { setPage('analysis'); close() }}><History size={17}/><span>Revenue drivers</span></button>
-      <button className="recent-item" onClick={() => { setPage('reports'); close() }}><History size={17}/><span>Regional margins</span></button>
-    </nav>
-    <div className="sidebar-bottom">
-      <button><CircleHelp size={18}/><span>Help & docs</span></button>
-      <button><Settings size={18}/><span>Settings</span></button>
-      <div className="profile"><div className="avatar">BH</div><div><strong>Bilal Haider</strong><small>Personal workspace</small></div><MoreHorizontal size={18}/></div>
-    </div>
-  </aside>
-}
-
-function Header({ page, setSidebar, theme, toggleTheme }) {
-  const titles = { analysis: ['Analysis workspace', 'Ask a question. Get a decision, not a dashboard.'], reports: ['Reports', 'Every finished analysis, ready to revisit.'], datasets: ['Datasets', 'Manage the data available to your agent.'] }
-  return <header className="topbar">
-    <button className="icon-button menu-button" onClick={() => setSidebar(true)} aria-label="Open menu"><Menu size={20}/></button>
-    <div><h1>{titles[page][0]}</h1><p>{titles[page][1]}</p></div>
-    <div className="header-actions"><button className="icon-button" onClick={toggleTheme} aria-label="Toggle theme" title="Toggle theme">{theme === 'dark' ? <Sun size={19}/> : <Moon size={19}/>}</button><button className="icon-button" aria-label="Notifications" title="Activity"><Activity size={19}/><i/></button><div className="avatar compact">BH</div></div>
-  </header>
-}
-
-function Uploader({ file, setFile }) {
-  const input = useRef(null)
-  const glassRef = useLiquidGlass({ scale: -66, chroma: 4, border: .1, blur: 2, saturate: 1.25, fallbackBlur: 18 })
-  const choose = (event) => { const next = event.target.files?.[0]; if (next) setFile(next) }
-  return <button ref={glassRef} className="upload-zone liquid-surface" onClick={() => input.current?.click()} onDragOver={e => e.preventDefault()} onDrop={e => { e.preventDefault(); if (e.dataTransfer.files[0]) setFile(e.dataTransfer.files[0]) }}>
-    <input ref={input} type="file" accept=".csv,.parquet" onChange={choose}/>
-    <div className="upload-icon"><UploadCloud size={21}/></div>
-    <div><strong>{file?.name || 'Drop a dataset here'}</strong><span>{file ? `${(file.size / 1024).toFixed(1)} KB · Ready to analyze` : 'or click to browse · CSV or Parquet up to 100 MB'}</span></div>
-    {file && <span className="file-ready"><Check size={14}/> Ready</span>}
-  </button>
-}
-
-function AnalysisSetup({ onRun, running }) {
-  const [file, setFile] = useState({ name: 'sample_sales_data.csv', size: 5824 })
-  const [query, setQuery] = useState('Which product categories drive the most revenue, and how do customer ratings relate to returns?')
-  const [provider, setProvider] = useState('Ollama · llama3.2')
-  const providerGlass = useLiquidGlass({ scale: -58, chroma: 3, border: .12, blur: 2, fallbackBlur: 16 })
-  return <section className="setup-card panel">
-    <div className="section-heading"><div><span className="step-number">01</span><div><h2>Start an analysis</h2><p>Bring your data and describe the decision you need to make.</p></div></div><span className="privacy"><ShieldCheck size={14}/> Runs in an isolated sandbox</span></div>
-    <div className="setup-grid">
-      <div><label className="field-label">DATASET</label><Uploader file={file} setFile={setFile}/></div>
-      <div className="query-field"><label className="field-label">QUESTION</label><textarea value={query} onChange={e => setQuery(e.target.value)} maxLength={500}/><span>{query.length}/500</span></div>
-    </div>
-    <div className="setup-footer">
-      <label ref={providerGlass} className="provider-select liquid-surface"><Zap size={16}/><select value={provider} onChange={e => setProvider(e.target.value)}><option>Ollama · llama3.2</option><option>OpenAI · gpt-4o-mini</option><option>Mock · offline test</option></select><ChevronDown size={15}/></label>
-      <button className="run-button" onClick={() => onRun(query)} disabled={running}>{running ? <><span className="spinner"/> Analyzing</> : <><Play size={17} fill="currentColor"/> Run analysis</>}</button>
-    </div>
-  </section>
-}
-
-function Pipeline({ running, stage }) {
-  return <section className="panel pipeline-card">
-    <div className="card-title"><div><BrainCircuit size={18}/><h3>Agent activity</h3></div><span className={running ? 'status running' : 'status done'}>{running ? 'Running' : 'Completed'}</span></div>
-    <div className="pipeline-list">
-      {pipeline.map(([title, detail], index) => {
-        const complete = !running || index < stage
-        const active = running && index === stage
-        return <div className={`pipeline-row ${complete ? 'complete' : ''} ${active ? 'current' : ''}`} key={title}>
-          <div className="pipeline-rail"><span>{complete ? <Check size={12}/> : index + 1}</span>{index < pipeline.length - 1 && <i/>}</div>
-          <div><strong>{title}</strong><small>{complete ? detail : active ? 'Working on this now…' : 'Waiting'}</small></div>
-          {complete && index === 4 && <em>0 retries</em>}
-        </div>
-      })}
-    </div>
-    <div className="runtime"><Clock3 size={14}/><span>{running ? `${Math.max(1, stage * 2)}s elapsed` : 'Completed in 18.4s'}</span><span>•</span><span>6 stages</span></div>
-  </section>
-}
-
-function Metric({ label, value, change, icon: Icon }) {
-  const glassRef = useLiquidGlass({ scale: -54, chroma: 3, border: .11, blur: 2, fallbackBlur: 17 })
-  return <div ref={glassRef} className="metric liquid-surface"><div className="metric-top"><span>{label}</span><Icon size={17}/></div><strong>{value}</strong><small>{change}</small></div>
-}
-
-function BarChart() {
-  return <div className="bar-chart" aria-label="Revenue by product category bar chart">
-    {categoryData.map(row => <div className="bar-row" key={row.name}><span>{row.name}</span><div><i style={{ width: `${row.value}%` }}/></div><strong>{row.amount}</strong></div>)}
-  </div>
-}
-
-function Donut() {
-  return <div className="donut-wrap"><div className="donut"><div><strong>20%</strong><span>Return rate</span></div></div><div className="donut-legend"><span><i className="mint"/>Kept <strong>80%</strong></span><span><i className="coral"/>Returned <strong>20%</strong></span></div></div>
-}
-
-function Results({ running, query, notify }) {
-  const [tab, setTab] = useState('Overview')
-  const [downloadOpen, setDownloadOpen] = useState(false)
-  const exportGlass = useLiquidGlass({ scale: -52, chroma: 3, border: .12, blur: 2, fallbackBlur: 16 })
-  const download = (format) => {
-    const content = `# Analytical Decision Report\n\n## Executive Summary\nElectronics is the primary revenue engine. Customer ratings show a statistically significant positive relationship with revenue, while returns concentrate in lower-rated, heavily discounted orders.\n\n## Recommended Actions\n- Protect Electronics availability.\n- Address Fashion return drivers.\n- Trigger follow-up on low-rating purchases.`
-    const blob = new Blob([content], { type: format === 'HTML' ? 'text/html' : 'text/markdown' })
-    const anchor = document.createElement('a'); anchor.href = URL.createObjectURL(blob); anchor.download = `lumen-report.${format === 'HTML' ? 'html' : 'md'}`; anchor.click(); URL.revokeObjectURL(anchor.href)
-    setDownloadOpen(false); notify(`${format} report downloaded`)
-  }
-  return <section className={`results ${running ? 'results-dimmed' : ''}`}>
-    <div className="results-header"><div><span className="eyebrow">LATEST RESULT</span><h2>Revenue drivers & return risk</h2><p>{query}</p></div><div className="export-wrap"><button ref={exportGlass} className="secondary-button liquid-surface" onClick={() => setDownloadOpen(!downloadOpen)}><ArrowDownToLine size={16}/> Export <ChevronDown size={14}/></button>{downloadOpen && <div className="export-menu"><button onClick={() => download('Markdown')}>Markdown report</button><button onClick={() => download('HTML')}>HTML report</button></div>}</div></div>
-    <div className="tabs" role="tablist">{['Overview', 'Visuals', 'Report', 'Run details'].map(item => <button key={item} className={tab === item ? 'active' : ''} onClick={() => setTab(item)}>{item}</button>)}</div>
-    {tab === 'Overview' && <div className="overview">
-      <div className="metrics-grid"><Metric label="Total revenue" value="$18.4K" change="30 transactions analyzed" icon={BarChart3}/><Metric label="Top category" value="Electronics" change="44.6% of total revenue" icon={Sparkles}/><Metric label="Rating correlation" value="+0.64" change="Statistically significant" icon={Activity}/><Metric label="Return rate" value="20.0%" change="6 of 30 transactions" icon={RotateCcw}/></div>
-      <div className="insight-grid"><article className="panel narrative"><div className="card-title"><div><Sparkles size={18}/><h3>Executive brief</h3></div><span className="ai-badge">AI SYNTHESIZED</span></div><p>Electronics is the primary revenue engine, combining premium order values with strong customer ratings. Ratings show a meaningful positive relationship with revenue, while returns cluster in lower-rated, heavily discounted orders.</p><div className="callout"><strong>Decision</strong><p>Protect Electronics availability while addressing Fashion’s return drivers before expanding discount-led acquisition.</p></div><h4>Recommended next moves</h4><ul><li><span>1</span>Shift inventory and campaign budget toward high-rated Electronics.</li><li><span>2</span>Review Fashion sizing and quality signals to reduce avoidable returns.</li><li><span>3</span>Trigger proactive support for purchases rated below 4.0.</li></ul></article><aside className="panel evidence"><div className="card-title"><div><ShieldCheck size={18}/><h3>Evidence quality</h3></div><strong>High</strong></div><div className="confidence"><i/><span>92% confidence</span></div><dl><div><dt>Rows profiled</dt><dd>30 / 30</dd></div><div><dt>Missing values</dt><dd>0</dd></div><div><dt>Statistical tests</dt><dd>Pearson r</dd></div><div><dt>Execution</dt><dd>Sandboxed</dd></div></dl></aside></div>
-    </div>}
-    {tab === 'Visuals' && <div className="visual-grid"><article className="panel chart-card"><div className="card-title"><div><BarChart3 size={18}/><h3>Revenue by category</h3></div><span>USD</span></div><BarChart/></article><article className="panel chart-card"><div className="card-title"><div><RotateCcw size={18}/><h3>Return outcome</h3></div><span>30 orders</span></div><Donut/></article></div>}
-    {tab === 'Report' && <article className="panel report-view"><div className="report-kicker">ANALYTICAL DECISION REPORT</div><h2>Revenue drivers & return risk</h2><h3>Executive summary</h3><p>Electronics is the dominant revenue driver with strong average order values. Customer rating has a statistically significant positive correlation with revenue, while returns are disproportionately concentrated in discounted categories.</p><h3>Core findings</h3><p>Product revenue is concentrated in Electronics, followed by Sports and Home & Kitchen. Higher customer ratings correspond with larger transaction amounts, and returns occur predominantly in lower-rated transactions.</p><h3>Statistical insights</h3><ul><li>Electronics leads category revenue with premium unit margins.</li><li>A positive Pearson correlation was observed between rating and order revenue.</li><li>The overall return rate is 20.0%.</li></ul></article>}
-    {tab === 'Run details' && <div className="details-grid"><Pipeline running={false} stage={6}/><article className="panel code-panel"><div className="card-title"><div><Code2 size={18}/><h3>Execution contract</h3></div><span>Python</span></div><pre><code>{`Provider     Ollama / llama3.2\nRuntime      Isolated subprocess\nLibraries    Polars, SciPy, Matplotlib\nTimeout      45 seconds\nRetry budget 3 attempts\nExit code    0 (success)`}</code></pre></article></div>}
-  </section>
-}
-
-function AnalysisPage({ notify }) {
-  const [running, setRunning] = useState(false)
-  const [stage, setStage] = useState(6)
-  const [query, setQuery] = useState('Which product categories drive the most revenue, and how do customer ratings relate to returns?')
-  const run = nextQuery => { setQuery(nextQuery); setRunning(true); setStage(0); notify('Analysis started') }
-  useEffect(() => {
-    if (!running) return undefined
-    const timer = setInterval(() => setStage(current => Math.min(current + 1, 6)), 900)
-    return () => clearInterval(timer)
-  }, [running])
-  useEffect(() => {
-    if (running && stage === 6) {
-      setRunning(false)
-      notify('Analysis completed')
-    }
-  }, [running, stage])
-  return <><div className="workspace-grid"><AnalysisSetup onRun={run} running={running}/><Pipeline running={running} stage={stage}/></div><Results running={running} query={query} notify={notify}/></>
-}
-
-function ReportsPage({ setPage }) {
-  return <section className="page-panel"><div className="page-actions"><div className="search"><Search size={17}/><input placeholder="Search reports"/></div><button className="run-button compact-button" onClick={() => setPage('analysis')}><Plus size={17}/> New analysis</button></div><div className="report-list"><div className="list-head"><span>REPORT</span><span>DATASET</span><span>CREATED</span><span>STATUS</span><span/></div>{reports.map((report, i) => <button className="report-row" key={report.title} onClick={() => setPage('analysis')}><span className="report-name"><span className="doc-icon"><FileText size={18}/></span><span><strong>{report.title}</strong><small>{i === 0 ? 'Revenue, ratings and return behavior' : 'Autonomous analysis report'}</small></span></span><span>{report.dataset}</span><span>{report.date}</span><span className="ready-dot"><i/>{report.status}</span><ChevronRight size={17}/></button>)}</div></section>
-}
-
-function DatasetsPage({ setPage }) {
-  const data = [{ name: 'sample_sales_data.csv', meta: '30 rows · 13 columns', used: 'Today, 9:42 PM' }, { name: 'sales_q2.csv', meta: '12,480 rows · 18 columns', used: 'Sep 29, 4:18 PM' }, { name: 'customers.csv', meta: '8,204 rows · 11 columns', used: 'Sep 27, 11:03 AM' }]
-  return <section className="page-panel"><div className="page-actions"><div><strong>3 datasets</strong><p>CSV and Parquet files available to your analyses.</p></div><button className="run-button compact-button" onClick={() => setPage('analysis')}><UploadCloud size={17}/> Upload dataset</button></div><div className="dataset-grid">{data.map((item, i) => <article className="panel dataset-card" key={item.name}><div className="dataset-top"><div className="dataset-icon"><Table2 size={22}/></div><button className="icon-button"><MoreHorizontal size={18}/></button></div><h3>{item.name}</h3><p>{item.meta}</p><div><span>Last analyzed</span><strong>{item.used}</strong></div><button onClick={() => setPage('analysis')}>Analyze <ArrowRight size={15}/></button>{i === 0 && <span className="sample-tag">SAMPLE</span>}</article>)}</div></section>
-}
+function Logo() { return <div className="logo"><i /><i /><i /><strong>DataSnap</strong></div> }
+function dateLabel(value) { return value ? new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Just now' }
 
 export default function App() {
-  const [page, setPage] = useState('analysis')
-  const [sidebar, setSidebar] = useState(false)
-  const [theme, setTheme] = useState('light')
-  const [toast, setToast] = useState('')
-  const notify = message => { setToast(message); setTimeout(() => setToast(''), 2600) }
-  useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
-  const content = useMemo(() => page === 'analysis' ? <AnalysisPage notify={notify}/> : page === 'reports' ? <ReportsPage setPage={setPage}/> : <DatasetsPage setPage={setPage}/>, [page])
-  return <div className="app-shell">
-    <div className="aurora aurora-one"/><div className="aurora aurora-two"/>
-    {sidebar && <button className="scrim" onClick={() => setSidebar(false)} aria-label="Close menu"/>}
-    <Sidebar page={page} setPage={setPage} open={sidebar} close={() => setSidebar(false)}/>
-    <main><Header page={page} setSidebar={setSidebar} theme={theme} toggleTheme={() => setTheme(theme === 'dark' ? 'light' : 'dark')}/><div className="content">{content}</div><footer><span><Logo/> Lumen analytics</span><span>Private by design · Built for decisive work</span></footer></main>
-    {toast && <GlassPanel className="toast" optics={{ scale: -50 }}><Check size={16}/>{toast}</GlassPanel>}
+  const [page, setPage] = useState(window.location.pathname.startsWith('/reports') ? 'reports' : window.location.pathname.startsWith('/report/') ? 'report' : window.location.pathname === '/analyze' ? 'analyze' : 'landing')
+  const [reportId, setReportId] = useState(window.location.pathname.split('/').pop())
+  const [reports, setReports] = useState([])
+  const [report, setReport] = useState(null)
+  const [file, setFile] = useState(null)
+  const [query, setQuery] = useState(DEFAULT_QUERY)
+  const [running, setRunning] = useState(false)
+  const [step, setStep] = useState(0)
+  const [error, setError] = useState('')
+  const [quota, setQuota] = useState(null)
+
+  useEffect(() => { listReports().then(items => { setReports(items); if (page === 'report') setReport(items.find(item => item.analysis_id === reportId)) }) }, [])
+  useEffect(() => { const onPop = () => { const path = window.location.pathname; setPage(path.startsWith('/reports') ? 'reports' : path.startsWith('/report/') ? 'report' : path === '/analyze' ? 'analyze' : 'landing'); setReportId(path.split('/').pop()) }; window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop) }, [])
+
+  function navigate(next, id = '') { const path = id ? `/report/${id}` : next === 'analyze' ? '/analyze' : next === 'reports' ? '/reports' : '/'; window.history.pushState({}, '', path); setPage(next); if (id) setReportId(id) }
+  function openReport(item) { setReport(item); navigate('report', item.analysis_id) }
+
+  async function runAnalysis() {
+    if (!file) return setError('Choose a dataset before continuing.')
+    if (!query.trim()) return setError('Add a business question before continuing.')
+    setRunning(true); setError(''); setStep(0)
+    const payload = new FormData(); payload.append('query', query.trim()); payload.append('dataset', file); payload.append('provider', 'gemini')
+    const timer = setInterval(() => setStep(current => Math.min(current + 1, STEPS.length - 1)), 1500)
+    try {
+      const response = await fetch(`${API_URL}/api/v1/analyze`, { method: 'POST', body: payload, credentials: 'include' })
+      const body = await response.json()
+      setQuota({ remaining: response.headers.get('X-RateLimit-Remaining'), limit: response.headers.get('X-RateLimit-Limit') || '5' })
+      if (!response.ok) throw new Error(body.detail || body.error?.message || 'Analysis could not be completed.')
+      setReport(body); navigate('report', body.analysis_id)
+    } catch (requestError) { setError(requestError.message) } finally { clearInterval(timer); setRunning(false) }
+  }
+
+  async function deleteReport(id) { await removeReport(id); const next = await listReports(); setReports(next); if (report?.analysis_id === id) { setReport(null); navigate('reports') } }
+  function download(name, content, type) { const url = URL.createObjectURL(new Blob([content], { type })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = name; anchor.click(); URL.revokeObjectURL(url) }
+
+  return <div className="site-shell"><header className="site-nav"><button className="brand-button" onClick={() => navigate('landing')}><Logo /></button><nav><button className={page === 'analyze' ? 'active' : ''} onClick={() => navigate('analyze')}>Analyze</button><button className={page === 'reports' || page === 'report' ? 'active' : ''} onClick={() => navigate('reports')}>Reports <span>{reports.length}</span></button></nav><div className="nav-actions"><span className="privacy"><ShieldCheck size={14} /> Private by default</span><span className="quota">{quota ? `${quota.remaining}/${quota.limit} analyses left` : '5 analyses / hour'}</span></div></header>
+    {page === 'landing' && <Landing onStart={() => navigate('analyze')} onReports={() => navigate('reports')} />}
+    {page === 'analyze' && <Analyze file={file} setFile={setFile} query={query} setQuery={setQuery} running={running} step={step} error={error} onRun={runAnalysis} onReports={() => navigate('reports')} />}
+    {page === 'reports' && <Reports reports={reports} onOpen={openReport} onDelete={deleteReport} onNew={() => navigate('analyze')} />}
+    {page === 'report' && <ReportPage report={report || reports.find(item => item.analysis_id === reportId)} saved={reports.some(item => item.analysis_id === reportId)} onSave={async item => { await saveReport(item); setReports(await listReports()) }} onBack={() => navigate('reports')} download={download} />}
   </div>
+}
+
+function Landing({ onStart, onReports }) {
+  return <main className="landing"><section className="hero"><div className="hero-copy"><p className="eyebrow"><span /> AI-POWERED DECISION INTELLIGENCE</p><h1>Find the signal<br /><em>inside your data.</em></h1><p className="hero-sub">Upload a dataset, ask a business question, and get a clear decision brief backed by machine-verified evidence.</p><div className="hero-actions"><button className="primary-cta" onClick={onStart}>Start an analysis <ArrowUpRight size={17} /></button><button className="text-button" onClick={onReports}>View saved reports <ChevronRight size={15} /></button></div><div className="hero-trust"><span><ShieldCheck size={15} /> Isolated execution</span><span><Check size={15} /> Evidence-first output</span><span><Zap size={15} /> Built for fast answers</span></div></div><div className="hero-visual"><div className="visual-top"><span>LIVE SIGNAL</span><span>ANALYSIS READY</span></div><div className="signal-card"><div className="signal-header"><div><small>REVENUE MOMENTUM</small><strong>+32.8%</strong></div><span className="signal-up">↗</span></div><div className="signal-chart"><i /><i /><i /><i /><i /><i /><i /><i /><i /></div><div className="chart-axis"><span>JAN</span><span>APR</span><span>JUL</span><span>OCT</span></div></div><div className="floating-card"><div className="mini-icon"><BarChart3 size={16} /></div><div><strong>Decision brief</strong><small>6 verified insights</small></div><Check size={16} /></div><div className="visual-caption"><span>01</span><p>From raw rows to a decision-ready view.</p></div></div></section><section className="landing-strip"><div><strong>01</strong><span>Upload your data</span></div><div><strong>02</strong><span>Ask the question</span></div><div><strong>03</strong><span>Review the evidence</span></div></section></main>
+}
+
+function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, onReports }) {
+  const chooseFile = event => setFile(event.target.files?.[0] || null)
+  return <main className="workspace"><div className="workspace-intro"><div><p className="eyebrow"><span /> NEW ANALYSIS</p><h1>What decision are you making?</h1><p>Bring the data. DataSnap will structure the analysis and return the evidence.</p></div><button className="text-button" onClick={onReports}>Open saved reports <ChevronRight size={15} /></button></div><div className="analyze-grid"><section className="input-panel"><div className="panel-step"><span>01</span><div><strong>Dataset</strong><small>CSV, XLSX, Parquet, TSV, JSON or JSONL</small></div></div><div className={`upload-box ${file ? 'selected' : ''}`} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); setFile(event.dataTransfer.files[0]) }}>{file ? <div className="file-selected"><div className="file-type"><FileText size={21} /></div><div><strong>{file.name}</strong><span>{(file.size / 1024).toFixed(1)} KB · Ready to analyze</span></div><label className="change-file">Change<input type="file" accept=".csv,.xlsx,.parquet,.tsv,.json,.jsonl" onChange={chooseFile} /></label><button className="remove-file" onClick={() => setFile(null)} aria-label="Remove selected file"><X size={16} /></button></div> : <><div className="upload-symbol"><UploadCloud size={23} /></div><strong>Drop your dataset here</strong><span>or browse from your computer</span><input type="file" accept=".csv,.xlsx,.parquet,.tsv,.json,.jsonl" onChange={chooseFile} /></>}</div><div className="panel-step question-step"><span>02</span><div><strong>Business question</strong><small>Be specific about the decision you need to make</small></div></div><textarea className="question-box" value={query} onChange={event => setQuery(event.target.value)} maxLength={500} /><div className="input-footer"><span className="fallback-note"><Zap size={15} /> Gemini primary + automatic fallback</span><button className="primary-cta small" onClick={onRun} disabled={running}>{running ? <><LoaderCircle className="spin" size={16} /> Analyzing</> : <><Play size={16} fill="currentColor" /> Run analysis</>}</button></div>{error && <div className="error-line"><X size={15} /><div><strong>Analysis could not be completed</strong><span>{error}</span><button onClick={onRun}>Try again</button></div></div>}</section><aside className="process-panel"><p className="eyebrow">YOUR ANALYSIS</p><h2>{running ? 'Building your brief' : 'A clear path to clarity'}</h2><div className="process-list">{STEPS.map((item, index) => <div className={`process-row ${step > index ? 'done' : ''} ${running && step === index ? 'current' : ''}`} key={item}><span>{step > index ? <Check size={12} /> : `0${index + 1}`}</span><strong>{item}</strong></div>)}</div><div className="process-note"><ShieldCheck size={17} /><p>Your dataset is executed in an isolated runtime. Reports are saved only when you choose to save them.</p></div></aside></div></main>
+}
+
+function AnalyzeLegacy({ file, setFile, query, setQuery, model, setModel, running, step, error, onRun, onReports }) {
+  return <main className="workspace"><div className="workspace-intro"><div><p className="eyebrow"><span /> NEW ANALYSIS</p><h1>What decision are you making?</h1><p>Bring the data. Lumen will structure the analysis and return the evidence.</p></div><button className="text-button" onClick={onReports}>Open saved reports <ChevronRight size={15} /></button></div><div className="analyze-grid"><section className="input-panel"><div className="panel-step"><span>01</span><div><strong>Dataset</strong><small>CSV, XLSX, Parquet, TSV, JSON or JSONL</small></div></div><div className={`upload-box ${file ? 'selected' : ''}`} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); setFile(event.dataTransfer.files[0]) }}><div className="upload-symbol"><UploadCloud size={23} /></div><strong>{file ? file.name : 'Drop your dataset here'}</strong><span>{file ? `${(file.size / 1024).toFixed(1)} KB ready to analyze` : 'or browse from your computer'}</span><input type="file" accept=".csv,.xlsx,.parquet,.tsv,.json,.jsonl" onChange={event => setFile(event.target.files?.[0] || null)} /></div><div className="panel-step question-step"><span>02</span><div><strong>Business question</strong><small>Be specific about the decision you need to make</small></div></div><textarea className="question-box" value={query} onChange={event => setQuery(event.target.value)} maxLength={500} /><div className="input-footer"><label><Zap size={15} /><select value={model} onChange={event => setModel(event.target.value)}><option value="gemini-3.1-flash-lite">Gemini 3.1 Flash Lite</option><option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option><option value="gemini-2.5-flash-lite">Gemini 2.5 Flash Lite</option></select></label><button className="primary-cta small" onClick={onRun} disabled={running}>{running ? <><LoaderCircle className="spin" size={16} /> Analyzing</> : <><Play size={16} fill="currentColor" /> Run analysis</>}</button></div>{error && <div className="error-line"><X size={15} /> {error}</div>}</section><aside className="process-panel"><p className="eyebrow">YOUR ANALYSIS</p><h2>{running ? 'Building your brief' : 'A clear path to clarity'}</h2><div className="process-list">{STEPS.map((item, index) => <div className={`process-row ${step > index ? 'done' : ''} ${running && step === index ? 'current' : ''}`} key={item}><span>{step > index ? <Check size={12} /> : `0${index + 1}`}</span><strong>{item}</strong></div>)}</div><div className="process-note"><ShieldCheck size={17} /><p>Your dataset is executed in an isolated runtime. Reports are saved only when you choose to save them.</p></div></aside></div></main>
+}
+
+function Reports({ reports, onOpen, onDelete, onNew }) {
+  return <main className="reports-page"><div className="page-heading"><div><p className="eyebrow"><span /> REPORT LIBRARY</p><h1>Your saved intelligence.</h1><p>Only reports you explicitly saved live here, in this browser.</p></div><button className="primary-cta small" onClick={onNew}><Plus size={16} /> New analysis</button></div>{reports.length === 0 ? <div className="empty-library"><FileText size={25} /><h2>No saved reports yet</h2><p>Run an analysis, then save the result when you are ready to keep it.</p><button className="text-button" onClick={onNew}>Start your first analysis <ArrowUpRight size={15} /></button></div> : <div className="report-list">{reports.map(item => <article className="report-row" key={item.analysis_id}><button onClick={() => onOpen(item)}><span className="report-mark"><BarChart3 size={18} /></span><span><strong>{item.answers_to_query?.slice(0, 85) || 'Decision brief'}</strong><small>{dateLabel(item.saved_at)} · {item.grounding?.data_quality?.row_count || 0} rows analyzed</small></span></button><span className="report-status"><Check size={13} /> Saved</span><button className="delete-button" onClick={() => onDelete(item.analysis_id)} aria-label="Delete report"><X size={16} /></button></article>)}</div>}</main>
+}
+
+function OldReportPage({ report, saved, onSave, onBack, download }) {
+  if (!report) return <main className="reports-page"><button className="text-button" onClick={onBack}><ArrowLeft size={15} /> Back to reports</button><div className="empty-library"><FileText size={25} /><h2>Report not found</h2><p>This report is not available in this browser.</p></div></main>
+  return <main className="report-page"><div className="report-page-nav"><button className="text-button" onClick={onBack}><ArrowLeft size={15} /> All reports</button><div className="report-actions"><span className="verified"><Check size={13} /> Verified metrics</span><button className="save-button" onClick={() => onSave(report)} disabled={saved}><Save size={15} /> {saved ? 'Saved locally' : 'Save report'}</button><button className="outline-button" onClick={() => download('lumen-report.md', report.markdown_report || '', 'text/markdown')}><FileText size={15} /> Markdown</button><button className="outline-button" onClick={() => download('lumen-report.html', report.html_report || '', 'text/html')}><Download size={15} /> HTML</button></div></div><div className="report-paper"><div className="report-paper-head"><div><p className="eyebrow"><span /> ANALYTICAL DECISION REPORT</p><h1>Decision brief</h1><p>Evidence prepared from {report.grounding?.data_quality?.row_count || 0} rows of uploaded data.</p></div><span className="report-stamp"><ShieldCheck size={16} /> Machine verified</span></div><div className="report-content"><div className="report-lead"><span>EXECUTIVE SUMMARY</span><p>{report.executive_summary}</p></div><div className="report-answer"><span>ANSWER TO YOUR QUESTION</span><p>{report.answers_to_query}</p></div><div className="report-columns"><section><h2>Statistical insights</h2><ul>{(report.statistical_insights || []).map(item => <li key={item}>{item}</li>)}</ul></section><section><h2>Recommended actions</h2><ul>{(report.recommended_actions || []).map(item => <li key={item}>{item}</li>)}</ul></section></div></div><div className="report-embed"><iframe title="Full analytical decision report" srcDoc={report.html_report || '<p>No formatted report available.</p>'} /></div></div></main>
+}
+
+function ReportPage({ report, saved, onSave, onBack, download }) {
+  const [tab, setTab] = useState('overview')
+  if (!report) return <main className="reports-page"><button className="text-button" onClick={onBack}><ArrowLeft size={15} /> Back to reports</button><div className="empty-library"><FileText size={25} /><h2>Report not found</h2><p>This report is not available in this browser.</p></div></main>
+  const metrics = report.metrics || {}
+  const metricRows = Object.entries(metrics)
+  return <main className="report-page"><div className="report-page-nav"><button className="text-button" onClick={onBack}><ArrowLeft size={15} /> All reports</button><div className="report-actions"><span className="verified"><Check size={13} /> Verified metrics</span><button className="save-button" onClick={() => onSave(report)} disabled={saved}><Save size={15} /> {saved ? 'Saved locally' : 'Save report'}</button><button className="outline-button" onClick={() => download('lumen-report.md', report.markdown_report || '', 'text/markdown')}><FileText size={15} /> Markdown</button><button className="outline-button" onClick={() => download('lumen-report.html', report.html_report || '', 'text/html')}><Download size={15} /> HTML</button></div></div><div className="report-paper"><div className="report-paper-head"><div><p className="eyebrow"><span /> ANALYTICAL DECISION REPORT</p><h1>Decision brief</h1><p>Evidence prepared from {report.grounding?.data_quality?.row_count || 0} rows of uploaded data.</p></div><span className="report-stamp"><ShieldCheck size={16} /> Machine verified</span></div><div className="report-tabs">{[['overview', 'Overview'], ['insights', 'Insights & actions'], ['visuals', 'Visual evidence'], ['metrics', 'Verified metrics'], ['details', 'Run details']].map(([id, label]) => <button className={tab === id ? 'active' : ''} onClick={() => setTab(id)} key={id}>{label}</button>)}</div><div className="report-content">
+    {tab === 'overview' && <><div className="report-lead"><span>EXECUTIVE SUMMARY</span><p>{report.executive_summary}</p></div><div className="report-answer"><span>ANSWER TO YOUR QUESTION</span><p>{report.answers_to_query}</p></div><div className="overview-cards"><div><small>ROWS ANALYZED</small><strong>{report.grounding?.data_quality?.row_count || '—'}</strong></div><div><small>METRICS VERIFIED</small><strong>{report.grounding?.metric_count || metricRows.length}</strong></div><div><small>VISUALS GENERATED</small><strong>{report.charts?.length || 0}</strong></div></div></>}
+    {tab === 'insights' && <div className="report-columns full"><section><p className="section-label">STATISTICAL INSIGHTS</p><h2>What the data says</h2><ul>{(report.statistical_insights || []).map(item => <li key={item}>{item}</li>)}</ul></section><section><p className="section-label">RECOMMENDED ACTIONS</p><h2>What to do next</h2><ul>{(report.recommended_actions || []).map(item => <li key={item}>{item}</li>)}</ul></section></div>}
+    {tab === 'visuals' && <div className="visual-report-grid">{(report.charts || []).map((chart, index) => <figure key={`${index}-${chart.slice(0, 20)}`}><img src={`data:image/png;base64,${chart}`} alt={`Analysis visualization ${index + 1}`} /><figcaption>Visualization {String(index + 1).padStart(2, '0')}</figcaption></figure>)}</div>}
+    {tab === 'metrics' && <div className="metrics-reader">{metricRows.map(([key, value]) => <section key={key}><div className="metric-heading"><span>{key.replaceAll('_', ' ')}</span><em>verified</em></div>{Array.isArray(value) && value.length && typeof value[0] === 'object' ? <div className="metric-table-wrap"><table><thead><tr>{Object.keys(value[0]).map(column => <th key={column}>{column.replaceAll('_', ' ')}</th>)}</tr></thead><tbody>{value.map((row, index) => <tr key={index}>{Object.values(row).map((cell, cellIndex) => <td key={cellIndex}>{typeof cell === 'number' ? Number(cell.toFixed(4)) : String(cell)}</td>)}</tr>)}</tbody></table></div> : <strong className="metric-number">{typeof value === 'number' ? Number(value.toFixed(6)) : JSON.stringify(value)}</strong>}</section>)}</div>}
+    {tab === 'details' && <div className="details-reader"><div><small>ANALYSIS ID</small><code>{report.analysis_id}</code></div><div><small>PROVIDER</small><strong>{report.grounding?.provenance?.provider || 'Gemini'}</strong></div><div><small>MODEL</small><strong>{report.grounding?.provenance?.model || 'Primary with automatic fallback'}</strong></div><div><small>DATA QUALITY</small><strong>{report.grounding?.data_quality?.status || 'Reviewed'}</strong></div><div><small>DECISION STATUS</small><strong>Pending human review</strong></div></div>}
+  </div></div></main>
+}
+
+function LegacyReportPage({ report, saved, onSave, onBack, download }) {
+  if (!report) return <main className="reports-page"><button className="text-button" onClick={onBack}><ArrowLeft size={15} /> Back to reports</button><div className="empty-library"><FileText size={25} /><h2>Report not found</h2><p>This report may have been removed from local storage.</p></div></main>
+  return <main className="report-page"><div className="report-page-nav"><button className="text-button" onClick={onBack}><ArrowLeft size={15} /> All reports</button><div className="report-actions"><span className="verified"><Check size={13} /> Verified metrics</span><button className="outline-button" onClick={() => download('lumen-report.md', report.markdown_report || '', 'text/markdown')}><FileText size={15} /> Markdown</button><button className="outline-button" onClick={() => download('lumen-report.html', report.html_report || '', 'text/html')}><Download size={15} /> HTML</button></div></div><div className="report-paper"><div className="report-paper-head"><div><p className="eyebrow"><span /> ANALYTICAL DECISION REPORT</p><h1>Decision brief</h1><p>Evidence prepared from {report.grounding?.data_quality?.row_count || 0} rows of uploaded data.</p></div><span className="report-stamp"><ShieldCheck size={16} /> Machine verified</span></div><div className="report-content"><div className="report-lead"><span>EXECUTIVE SUMMARY</span><p>{report.executive_summary}</p></div><div className="report-answer"><span>ANSWER TO YOUR QUESTION</span><p>{report.answers_to_query}</p></div><div className="report-columns"><section><h2>Statistical insights</h2><ul>{(report.statistical_insights || []).map(item => <li key={item}>{item}</li>)}</ul></section><section><h2>Recommended actions</h2><ul>{(report.recommended_actions || []).map(item => <li key={item}>{item}</li>)}</ul></section></div></div><div className="report-embed"><iframe title="Full analytical decision report" srcDoc={report.html_report || '<p>No formatted report available.</p>'} /></div></div></main>
 }

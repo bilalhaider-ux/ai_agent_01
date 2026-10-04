@@ -1,8 +1,50 @@
 """LLM provider factory used by the LangGraph nodes."""
 
-from typing import Optional
+from typing import Any, Optional, Sequence
 
 from .config import AgentConfig, ProviderType
+
+
+def _is_retryable_provider_error(error: Exception) -> bool:
+    message = str(error).lower()
+    return any(marker in message for marker in ("429", "rate limit", "quota", "timeout", "temporarily", "503", "500"))
+
+
+class FallbackChatModel:
+    """Runnable facade that fails over between configured chat models."""
+
+    def __init__(self, models: Sequence[Any]):
+        self._models = list(models)
+
+    def invoke(self, messages: Any) -> Any:
+        last_error: Exception | None = None
+        for model in self._models:
+            try:
+                return model.invoke(messages)
+            except Exception as error:
+                last_error = error
+                if not _is_retryable_provider_error(error):
+                    raise
+        raise last_error or RuntimeError("No LLM model is configured.")
+
+    def with_structured_output(self, schema: Any) -> "FallbackStructuredModel":
+        return FallbackStructuredModel([model.with_structured_output(schema) for model in self._models])
+
+
+class FallbackStructuredModel:
+    def __init__(self, models: Sequence[Any]):
+        self._models = list(models)
+
+    def invoke(self, messages: Any) -> Any:
+        last_error: Exception | None = None
+        for model in self._models:
+            try:
+                return model.invoke(messages)
+            except Exception as error:
+                last_error = error
+                if not _is_retryable_provider_error(error):
+                    raise
+        raise last_error or RuntimeError("No structured LLM model is configured.")
 
 
 def get_llm(
@@ -34,11 +76,16 @@ def get_llm(
             raise ValueError("GEMINI_API_KEY is required when LLM_PROVIDER=gemini.")
         from langchain_google_genai import ChatGoogleGenerativeAI
 
-        return ChatGoogleGenerativeAI(
-            model=model or cfg.gemini_model,
-            google_api_key=cfg.gemini_api_key,
-            temperature=temperature,
-        )
+        model_names = [model or cfg.gemini_model, *(cfg.gemini_fallback_models or [])]
+        unique_model_names = list(dict.fromkeys(name for name in model_names if name))
+        return FallbackChatModel([
+            ChatGoogleGenerativeAI(
+                model=model_name,
+                google_api_key=cfg.gemini_api_key,
+                temperature=temperature,
+            )
+            for model_name in unique_model_names
+        ])
     if selected_provider == "openai":
         if not cfg.openai_api_key:
             raise ValueError("OPENAI_API_KEY is required when LLM_PROVIDER=openai.")

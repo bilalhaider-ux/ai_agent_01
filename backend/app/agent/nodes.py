@@ -163,23 +163,17 @@ EXECUTION ENVIRONMENT CONTRACT:
     - `polars as pl` for all data loading, manipulation, aggregations, and calculations. Use the reader matching the file extension: read_csv, read_excel, read_parquet, read_ndjson, or read_json.
    - `scipy.stats` for statistical tests (e.g., pearsonr, ttest_ind, f_oneway).
    - `matplotlib.pyplot as plt` for plotting.
+    - Do not import pandas or pyarrow. Do not call `.to_pandas()`; use Polars or SciPy directly.
 3. OUTPUT REQUIREMENTS:
    - Store all computed scalar metrics, numerical results, and summary dictionaries into `__AGENT_OUTPUT__["metrics"]`.
    - Ensure all metric values are JSON serializable (convert Polars Series/DataFrames to dict/list, or use float()/int()).
    - Always sanitize data for plotting (e.g., filter out null/None values before passing categories to matplotlib).
    - When creating plots, customize labels, titles, and legends nicely. Then call `save_current_figure_to_base64()`. NEVER call `plt.show()`.
-   - Store a concise text summary of observations in `__AGENT_OUTPUT__["summary"]`.
-4. OUTPUT ONLY PYTHON CODE:
-   - Do not include conversational markdown, do not write explanations outside code blocks.
 """
 
     repair_context = ""
     if error_traceback and retry_count > 0:
         repair_context = f"""
-=====================================================
-PREVIOUS ATTEMPT FAILED. FIX THE CODE!
-Attempt Number: {retry_count}
-Previous Code:
 ```python
 {previous_code}
 ```
