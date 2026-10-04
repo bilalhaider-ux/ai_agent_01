@@ -147,7 +147,7 @@ Use `LLM_PROVIDER=mock` for offline backend tests. For a real local smoke test, 
 
 ## Deployment Summary
 
-The backend is configured for Heroku through the root `Procfile`. The frontend is a standalone Vite app for Vercel. Follow [DEPLOYMENT.md](DEPLOYMENT.md) for the complete release procedure and environment mapping.
+The backend is configured for Heroku through the root `Procfile`. The frontend is a standalone Vite app for Vercel. Follow [Guide.md](Guide.md) for the complete release procedure and environment mapping.
 
 ## Important Limitations
 
