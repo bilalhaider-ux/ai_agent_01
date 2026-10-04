@@ -1,74 +1,111 @@
-# DataSnap Deployment Guide
+# DataSnap Deployment
 
-This guide deploys DataSnap as two services:
+> **Deploy a decision-intelligence app in two services.**
+>
+> DataSnap turns a business question and an uploaded dataset into a decision brief with verified metrics, charts, recommendations, and downloadable reports. This guide takes a fresh clone from zero to a working production deployment.
 
-- **Backend:** FastAPI on Heroku
-- **Frontend:** Vite/React on Vercel
+<p align="center">
+  <strong>React + Vite</strong>&nbsp;&nbsp; · &nbsp;&nbsp;<strong>Vercel</strong>&nbsp;&nbsp; · &nbsp;&nbsp;<strong>FastAPI</strong>&nbsp;&nbsp; · &nbsp;&nbsp;<strong>Heroku</strong>&nbsp;&nbsp; · &nbsp;&nbsp;<strong>Gemini</strong>
+</p>
 
-The frontend sends requests to the backend URL through `VITE_AGENT_API_URL`. The backend must allow the deployed frontend URL through `CORS_ALLOWED_ORIGINS`.
+## The Deployment Shape
 
-## 1. Prerequisites
+DataSnap is deployed as a frontend and a backend. The browser talks to the Heroku API; Gemini and any Redis credentials stay on the backend.
 
-Install or create accounts for:
+```mermaid
+flowchart LR
+    User[User browser]
+    Vercel[Vercel\nfrontend/]
+    Heroku[Heroku\nFastAPI API]
+    Gemini[Google AI Studio\nGemini API]
+    Redis[Upstash Redis\noptional shared quota]
 
-- Git and GitHub access to this repository
-- Heroku CLI and a Heroku account
-- Vercel account connected to GitHub
-- Google AI Studio access for a Gemini API key
-- Upstash Redis, optional but recommended for shared production rate limiting
+    User --> Vercel
+    Vercel -->|VITE_AGENT_API_URL| Heroku
+    Heroku -->|GEMINI_API_KEY| Gemini
+    Heroku -.->|UPSTASH credentials| Redis
+```
 
-Never commit API keys, Redis tokens, or local `.env` files. Keep provider credentials in Heroku Config Vars only.
+### What gets deployed where
 
-## 2. Get the source
+| Service | Platform | Repository setting | Public value |
+| --- | --- | --- | --- |
+| Frontend | Vercel | Root Directory: `frontend` | `https://<project>.vercel.app` |
+| Backend | Heroku | Repository root + root `Procfile` | `https://<app>.herokuapp.com` |
+| Model provider | Google AI Studio | Key stored in Heroku only | Never expose the key to Vercel |
+| Shared quota store | Upstash Redis | Optional Heroku Config Vars | REST URL and token stay private |
 
-Clone the repository and enter it:
+## Before You Start
+
+You need:
+
+- Access to the GitHub repository.
+- A Heroku account and the [Heroku CLI](https://devcenter.heroku.com/articles/heroku-cli).
+- A Vercel account connected to GitHub.
+- A Gemini API key from [Google AI Studio](https://aistudio.google.com/).
+- An Upstash account only if quota state must survive dyno restarts or be shared across dynos.
+- Git, Python 3.11+, Node.js, and npm for local verification.
+
+> **Security boundary:** never put `GEMINI_API_KEY`, Redis tokens, or signing secrets in Vercel variables, `frontend/.env`, source code, or a committed `.env` file. Any variable beginning with `VITE_` is shipped to the browser.
+
+## 1. Get the Code
+
+Clone the repository you are deploying:
 
 ```bash
 git clone https://github.com/bilalhaider-ux/ai_agent_01.git
 cd ai_agent_01
 ```
 
-The Heroku `Procfile` is at the repository root. The Vercel project must use `frontend` as its Root Directory.
+Confirm the deployment files are present:
 
-## 3. Create the Gemini API key
+```bash
+test -f Procfile && test -f requirements.txt && test -f frontend/vercel.json
+```
+
+The Heroku `Procfile` must be at the repository root. The Vercel project will use `frontend` as its root directory.
+
+## 2. Create the Gemini Credential
 
 1. Open [Google AI Studio](https://aistudio.google.com/).
-2. Create or select a Google project.
-3. Create an API key under **Get API key**.
-4. Store the key as the Heroku Config Var `GEMINI_API_KEY`.
+2. Sign in and select or create a Google project.
+3. Choose **Get API key** and create a key.
+4. Keep the key private. You will add it to Heroku as `GEMINI_API_KEY` in the next step.
 
-Do not put `GEMINI_API_KEY` in Vercel or in any `VITE_*` variable. Vite variables are exposed to the browser.
+The application uses Gemini for planning, code generation, and report synthesis. A key is required for the production provider. Do not test by pasting it into the frontend.
 
-## 4. Create the Heroku backend
+## 3. Create and Configure the Heroku Backend
 
-Log in and create a new Heroku app. Choose a unique app name:
+### Create the app
+
+Log in and create a unique app. The app name becomes part of its public URL:
 
 ```bash
 heroku login
 heroku create <your-backend-app-name>
 ```
 
-The resulting URL will look like:
+Your backend URL will be:
 
 ```text
 https://<your-backend-app-name>.herokuapp.com
 ```
 
-The repository already contains the Python dependencies and root `Procfile`. Deploy from the repository root:
+If the app already exists, connect the local repository instead:
 
 ```bash
-git push heroku main
+heroku git:remote --app <your-backend-app-name>
 ```
 
-If the current branch is not `main`, push it explicitly:
+### Add production Config Vars
+
+Generate the signing secret locally:
 
 ```bash
-git push heroku <branch-name>:main
+openssl rand -hex 32
 ```
 
-## 5. Configure Heroku Config Vars
-
-Set the required production values. Replace every placeholder before running the command:
+Set the required values. Replace every angle-bracket placeholder before running this command:
 
 ```bash
 heroku config:set \
@@ -78,23 +115,19 @@ heroku config:set \
   GEMINI_FALLBACK_MODELS=gemini-3.5-flash-lite,gemini-2.5-flash-lite \
   CORS_ALLOWED_ORIGINS="https://<your-vercel-domain>" \
   COOKIE_SECURE=true \
+  RATE_LIMIT_SECRET="<output-from-openssl>" \
+  MAX_REQUESTS_PER_HOUR=5 \
   MAX_RETRY_COUNT=3 \
   EXECUTION_TIMEOUT_SECONDS=45 \
   MAX_UPLOAD_SIZE_BYTES=52428800 \
-  MAX_REQUESTS_PER_HOUR=5 \
-  RATE_LIMIT_SECRET="<long-random-secret>" \
   --app <your-backend-app-name>
 ```
 
-Generate a signing secret locally instead of inventing a short value:
+`CORS_ALLOWED_ORIGINS` is temporary until the Vercel URL is known. After the frontend deploys, set it again with the exact final origin and no trailing slash.
 
-```bash
-openssl rand -hex 32
-```
+### Optional: connect Upstash Redis
 
-### Optional Upstash Redis variables
-
-The application uses an in-memory limiter when Redis variables are absent. For shared, restart-resistant production quotas, create a database at [Upstash](https://upstash.com/) and copy its REST credentials:
+Create a Redis database at [Upstash](https://upstash.com/). In its console, copy the **REST URL** and **REST token**, then add them to Heroku:
 
 ```bash
 heroku config:set \
@@ -103,33 +136,31 @@ heroku config:set \
   --app <your-backend-app-name>
 ```
 
-### Config Var reference
+Without these variables, the app uses an in-memory limiter. That is acceptable for a quick test, but shared production quota tracking should use Upstash.
 
-| Variable | Source or value | Required | Purpose |
-| --- | --- | --- | --- |
-| `LLM_PROVIDER` | `gemini` | Yes | Selects the production provider |
-| `GEMINI_API_KEY` | Google AI Studio | Yes | Backend-only Gemini credential |
-| `GEMINI_MODEL` | Usually `gemini-3.1-flash-lite` | Yes | Primary Gemini model |
-| `GEMINI_FALLBACK_MODELS` | Comma-separated Gemini model names | No | Fallback models for retryable failures |
-| `CORS_ALLOWED_ORIGINS` | Exact Vercel origin, no trailing slash | Yes | Allows browser requests from the frontend |
-| `COOKIE_SECURE` | `true` in HTTPS production | Yes | Enables secure quota cookies |
-| `RATE_LIMIT_SECRET` | Random value from `openssl` | Yes | Signs anonymous quota identity keys |
-| `MAX_REQUESTS_PER_HOUR` | `5` or an intentional limit | No | Anonymous analysis quota |
-| `MAX_RETRY_COUNT` | `3` | No | Agent code-repair attempts |
-| `EXECUTION_TIMEOUT_SECONDS` | `45` | No | Generated analysis subprocess limit |
-| `MAX_UPLOAD_SIZE_BYTES` | `52428800` | No | 50 MB upload limit |
-| `UPSTASH_REDIS_REST_URL` | Upstash REST URL | No | Shared quota storage |
-| `UPSTASH_REDIS_REST_TOKEN` | Upstash REST token | No | Upstash authentication |
+### Deploy the backend
 
-After changing Config Vars, restart the app if Heroku does not restart it automatically:
+Deploy from the repository root, where `Procfile` lives:
 
 ```bash
-heroku restart --app <your-backend-app-name>
+git push heroku main
 ```
 
-## 6. Verify the backend
+If deploying another local branch to Heroku's `main` branch:
 
-Check the health endpoint:
+```bash
+git push heroku <local-branch>:main
+```
+
+Check that the dyno is running:
+
+```bash
+heroku ps --app <your-backend-app-name>
+```
+
+## 4. Verify the Backend Before Vercel
+
+### Health check
 
 ```bash
 curl -i https://<your-backend-app-name>.herokuapp.com/health
@@ -141,7 +172,55 @@ Expected response:
 {"status":"ok"}
 ```
 
-Check the CORS preflight after the Vercel URL is known:
+### Mock analysis smoke test
+
+This checks uploads, routing, analysis execution, and the response contract without spending Gemini quota:
+
+```bash
+curl -i -X POST \
+  https://<your-backend-app-name>.herokuapp.com/api/v1/analyze \
+  -F "query=Analyze revenue" \
+  -F "provider=mock" \
+  -F "dataset=@backend/data/sample_sales_data.csv"
+```
+
+You should receive HTTP `201` and a JSON response with `status: "completed"`.
+
+## 5. Deploy the Frontend to Vercel
+
+1. Open [Vercel](https://vercel.com/) and choose **Add New Project**.
+2. Import the GitHub repository.
+3. Set **Root Directory** to `frontend`.
+4. Keep the framework as **Vite** or allow Vercel to detect it.
+5. Add this production environment variable:
+
+   ```text
+   VITE_AGENT_API_URL=https://<your-backend-app-name>.herokuapp.com
+   ```
+
+6. Deploy the project.
+
+The repository includes `frontend/vercel.json`. It provides the SPA fallback required for direct URLs such as `/analyze`, `/reports`, and `/report/<id>`.
+
+After deployment, copy the exact Vercel production origin. For example:
+
+```text
+https://datasnap-example.vercel.app
+```
+
+Update Heroku with that origin:
+
+```bash
+heroku config:set \
+  CORS_ALLOWED_ORIGINS="https://<your-vercel-domain>" \
+  --app <your-backend-app-name>
+```
+
+Do not use a trailing slash. Do not include `/analyze` or any other path.
+
+## 6. Verify the Full Deployment
+
+### Check CORS
 
 ```bash
 curl -i -X OPTIONS \
@@ -151,90 +230,98 @@ curl -i -X OPTIONS \
   -H "Access-Control-Request-Headers: content-type"
 ```
 
-The response must include:
+The response must contain:
 
 ```text
 access-control-allow-origin: https://<your-vercel-domain>
 ```
 
-## 7. Deploy the frontend to Vercel
+### Test the browser workflow
 
-1. Open Vercel and choose **Add New Project**.
-2. Import `bilalhaider-ux/ai_agent_01` from GitHub.
-3. Set **Root Directory** to `frontend`.
-4. Keep the framework as Vite or let Vercel detect it.
-5. Set the production environment variable:
+- Open the Vercel production URL.
+- Open `/analyze` directly in the address bar and confirm it does not return a Vercel 404.
+- Upload `backend/data/sample_sales_data.csv`.
+- Ask a business question and run the analysis.
+- Confirm the report opens at `/report/<analysis-id>`.
+- Save the report and confirm it appears at `/reports`.
+- Open the browser developer console only if a request fails; inspect the response status before diagnosing CORS.
 
-   ```text
-   VITE_AGENT_API_URL=https://<your-backend-app-name>.herokuapp.com
-   ```
+## Environment Variable Reference
 
-6. Deploy the project.
+| Variable | Where its value comes from | Required | Where it belongs |
+| --- | --- | :---: | --- |
+| `LLM_PROVIDER` | Literal value `gemini` | Yes | Heroku |
+| `GEMINI_API_KEY` | Google AI Studio → **Get API key** | Yes | Heroku only |
+| `GEMINI_MODEL` | Approved Gemini model name | Yes | Heroku |
+| `GEMINI_FALLBACK_MODELS` | Comma-separated Gemini model names | No | Heroku |
+| `CORS_ALLOWED_ORIGINS` | Final Vercel origin, without `/` at the end | Yes | Heroku |
+| `COOKIE_SECURE` | Literal value `true` behind HTTPS | Yes | Heroku |
+| `RATE_LIMIT_SECRET` | `openssl rand -hex 32` output | Yes | Heroku only |
+| `MAX_REQUESTS_PER_HOUR` | Intentional anonymous quota, normally `5` | No | Heroku |
+| `MAX_RETRY_COUNT` | Agent repair attempts, normally `3` | No | Heroku |
+| `EXECUTION_TIMEOUT_SECONDS` | Generated-code limit, normally `45` | No | Heroku |
+| `MAX_UPLOAD_SIZE_BYTES` | Upload limit, normally `52428800` (50 MB) | No | Heroku |
+| `UPSTASH_REDIS_REST_URL` | Upstash database → REST URL | No | Heroku only |
+| `UPSTASH_REDIS_REST_TOKEN` | Upstash database → REST token | No | Heroku only |
+| `VITE_AGENT_API_URL` | The deployed Heroku backend URL | Yes | Vercel only |
 
-The frontend contains `frontend/vercel.json`, which serves the React app for direct URLs such as `/analyze`, `/reports`, and `/report/<id>`.
-
-Copy the final Vercel production URL, then update the Heroku variable with the exact origin:
-
-```bash
-heroku config:set \
-  CORS_ALLOWED_ORIGINS="https://<your-vercel-domain>" \
-  --app <your-backend-app-name>
-```
-
-Do not add a trailing slash and do not include a path such as `/analyze`.
-
-## 8. End-to-end test
-
-1. Open the Vercel production URL.
-2. Go to `/analyze` directly in the address bar.
-3. Upload `backend/data/sample_sales_data.csv`.
-4. Enter a business question.
-5. Run the analysis.
-6. Confirm that the report opens at `/report/<analysis-id>`.
-7. Save the report and verify it appears under `/reports`.
-
-For a backend-only smoke test, use the mock provider. This avoids Gemini usage and confirms the upload and analysis pipeline:
-
-```bash
-curl -X POST https://<your-backend-app-name>.herokuapp.com/api/v1/analyze \
-  -F "query=Analyze revenue" \
-  -F "provider=mock" \
-  -F "dataset=@backend/data/sample_sales_data.csv"
-```
-
-## 9. Troubleshooting
+## Troubleshooting
 
 ### `CORS policy` or missing `Access-Control-Allow-Origin`
 
-- Confirm `CORS_ALLOWED_ORIGINS` exactly matches the Vercel origin.
+- Confirm the browser's `Origin` exactly matches `CORS_ALLOWED_ORIGINS`.
 - Use `https://`, not `http://`.
-- Remove a trailing slash.
-- Restart Heroku after changing the Config Var.
-- Check the browser request's `Origin` value; custom domains need their own entry.
+- Remove a trailing slash and any path such as `/analyze`.
+- Restart Heroku after changing Config Vars:
+
+  ```bash
+  heroku restart --app <your-backend-app-name>
+  ```
+
+- Remember that a Heroku `503` response can appear in the browser as a misleading CORS error. Check the Network tab's status first.
 
 ### `429 Too Many Requests`
 
-The default anonymous limit is five analyses per rolling hour. Wait for the reset time in `X-RateLimit-Reset`, or intentionally increase `MAX_REQUESTS_PER_HOUR`. Repeated failed tests can consume quota.
+The default anonymous quota is five analyses per rolling hour. Wait for `X-RateLimit-Reset`, or deliberately raise `MAX_REQUESTS_PER_HOUR`. Repeated failed tests may still consume quota.
 
 ### `503`, `H13`, or `WORKER TIMEOUT`
 
-Inspect Heroku logs:
+Inspect the Heroku logs:
 
 ```bash
 heroku logs --tail --app <your-backend-app-name>
 ```
 
-Gemini analysis is synchronous and can be slow. Gunicorn is configured with a longer worker timeout, but Heroku's router still has a short request limit. A durable solution for analyses that exceed that limit is a background job plus a status-polling endpoint.
+The app's Gunicorn timeout is extended, but Heroku's router still has a short request limit. Gemini analysis is synchronous; if it regularly exceeds the router limit, the durable fix is a background job and a status-polling endpoint.
 
 ### Vercel direct URL returns `404`
 
-Confirm the Vercel Root Directory is `frontend` and that `frontend/vercel.json` is included in the deployed commit. Redeploy after changing the Root Directory.
+- Set Vercel **Root Directory** to `frontend`.
+- Confirm `frontend/vercel.json` is in the deployed commit.
+- Redeploy after changing the Root Directory.
 
-## 10. Security checklist
+### Gemini errors or quota failures
 
-- Never commit `.env`, API keys, Redis tokens, or signing secrets.
-- Keep provider credentials in Heroku Config Vars only.
-- Keep `VITE_AGENT_API_URL` as the only backend-related frontend variable.
-- Use `COOKIE_SECURE=true` in production.
-- Keep CORS restricted to known frontend origins.
-- Rotate any credential that was accidentally exposed.
+- Check that `GEMINI_API_KEY` exists in Heroku Config Vars.
+- Check the Google AI Studio project, billing/quota, and selected model names.
+- Do not move the key into Vercel or rename it with a `VITE_` prefix.
+
+## Production Checklist
+
+- [ ] Backend health endpoint returns `200`.
+- [ ] Heroku has a valid Gemini key and signing secret.
+- [ ] Upstash credentials are configured if shared quota persistence is required.
+- [ ] Vercel Root Directory is `frontend`.
+- [ ] Vercel has `VITE_AGENT_API_URL` pointing to Heroku.
+- [ ] Heroku `CORS_ALLOWED_ORIGINS` matches the final Vercel origin exactly.
+- [ ] `/analyze` works when opened directly.
+- [ ] A mock smoke test returns `201`.
+- [ ] A real Gemini analysis completes within the platform request limit.
+- [ ] No secret, `.env` file, API key, Redis token, or signing secret is committed.
+
+## Operational Notes
+
+- Saved reports live in the current browser; they are not a shared account database.
+- Backend report records are process-memory data and are not durable across dyno restarts.
+- Generated analysis code runs in a timed subprocess. This is not a hardened multi-tenant sandbox.
+- Statistical correlation and significance do not prove causation; reports remain subject to human review.
