@@ -45,6 +45,39 @@ const STATS = [
   { value: '0', label: 'Accounts required' }
 ]
 
+/* ---- Pricing (PKR). Yearly ≈ 20% off, shown as the per-month equivalent. ---- */
+const PRICING_PLANS = [
+  {
+    name: 'Starter',
+    monthly: 0,
+    yearly: 0,
+    blurb: 'For individuals exploring what automated analysis can do.',
+    cta: 'Get started',
+    popular: false,
+    features: ['5 analyses per hour', 'All 6+ file formats', 'Isolated code execution', 'Verified metrics & charts', 'Markdown & HTML export']
+  },
+  {
+    name: 'Pro',
+    monthly: 2900,
+    yearly: 2320,
+    blurb: 'For analysts who need more runs and deeper evidence.',
+    cta: 'Upgrade to Pro',
+    popular: true,
+    features: ['Unlimited analyses', 'Priority Gemini throughput', 'Extended execution timeout', 'Larger upload limits', 'Priority support']
+  },
+  {
+    name: 'Teams',
+    monthly: 5900,
+    yearly: 4720,
+    blurb: 'For teams that need shared, scalable decision intelligence.',
+    cta: 'Contact sales',
+    popular: false,
+    features: ['Everything in Pro', 'Up to 15 members', 'Shared report library', 'Role-based access', 'Dedicated support']
+  }
+]
+const pkr = (n) => n === 0 ? 'PKR 0' : `PKR ${n.toLocaleString('en-PK')}`
+
+
 /* ---- Grounded preview data (sample_sales_data.csv, exactly what the agent computes) ---- */
 // Total Revenue by Product Category (Polars group_by, sorted desc)
 const PREVIEW_CATEGORIES = [
@@ -518,6 +551,88 @@ function LegalPage({ doc, onBack, onNavigate }) {
 }
 
 
+/* --------------------------------------------------------------- Pricing -- */
+function Pricing({ onStart }) {
+  const [yearly, setYearly] = useState(false)
+  return (
+    <section className="section pricing" id="pricing">
+      <motion.div className="section-head center" {...fadeUpView}>
+        <p className="eyebrow"><span /> PRICING</p>
+        <h2>Start free,<br />scale when ready.</h2>
+      </motion.div>
+
+      {/* Billing toggle */}
+      <motion.div className="pricing-toggle" initial={{ opacity: 0, y: 14 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ duration: 0.4, ease: easeOut }}>
+        <span className={!yearly ? 'active' : ''}>Monthly</span>
+        <button
+          type="button"
+          className={`pricing-switch ${yearly ? 'on' : ''}`}
+          onClick={() => setYearly(v => !v)}
+          role="switch"
+          aria-checked={yearly}
+          aria-label="Toggle yearly billing"
+        >
+          <motion.span className="pricing-knob" layout transition={{ type: 'spring', stiffness: 500, damping: 32 }} />
+        </button>
+        <span className={yearly ? 'active' : ''}>Yearly</span>
+        <em className="pricing-save">20% OFF</em>
+      </motion.div>
+
+      {/* Plan cards */}
+      <motion.div className="pricing-grid" variants={staggerParent} initial="initial" whileInView="whileInView" viewport={{ once: true, amount: 0.2 }}>
+        {PRICING_PLANS.map((plan) => {
+          const price = yearly ? plan.yearly : plan.monthly
+          return (
+            <motion.article
+              key={plan.name}
+              className={`pricing-card ${plan.popular ? 'popular' : ''}`}
+              variants={revealItem}
+              whileHover={{ y: -6 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
+            >
+              <div className="pricing-card-head">
+                <h3>{plan.name}</h3>
+                {plan.popular && <span className="pricing-badge">POPULAR</span>}
+              </div>
+
+              <div className="pricing-price">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.strong
+                    key={price}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.25, ease: easeOut }}
+                  >
+                    {pkr(price)}
+                  </motion.strong>
+                </AnimatePresence>
+                <small>{price === 0 ? 'forever' : 'user / mo'}</small>
+              </div>
+
+              <p className="pricing-blurb">{plan.blurb}</p>
+
+              <button className={plan.popular ? 'pricing-cta primary' : 'pricing-cta'} onClick={onStart}>
+                {plan.cta}
+              </button>
+
+              <ul className="pricing-features">
+                {plan.features.map((f) => (
+                  <li key={f}><Check size={15} /> {f}</li>
+                ))}
+              </ul>
+            </motion.article>
+          )
+        })}
+      </motion.div>
+
+      <p className="pricing-note">Prices in PKR. {`Yearly plans are billed annually at the discounted rate.`} The free Starter tier needs no account.</p>
+    </section>
+  )
+}
+
+
+
 function Landing({ onStart, onReports, onLearnMore, onNavigate }) {
   return (
     <MMain className="landing" variants={pageMotion} initial="initial" animate="animate" exit="exit">
@@ -689,6 +804,8 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate }) {
           </motion.div>
         ))}
       </motion.section>
+
+      <Pricing onStart={onStart} />
 
       <section className="section">
         <motion.div className="cta-band" {...fadeUpView}>
