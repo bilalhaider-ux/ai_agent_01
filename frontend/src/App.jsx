@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useEffect, useRef, useState } from 'react'
+import { motion, AnimatePresence, useScroll, useSpring, useReducedMotion, useInView, useMotionValue, useTransform, animate as animateValue } from 'framer-motion'
 import { Activity, ArrowLeft, ArrowUpRight, BarChart3, BrainCircuit, Check, ChevronRight, Cpu, Database, Download, FileSearch, FileText, Gauge, LineChart, LoaderCircle, Lock, Moon, Play, Plus, Save, ShieldCheck, Sparkles, Sun, Table2, Terminal, UploadCloud, Workflow, X, Zap } from 'lucide-react'
+import Lenis from 'lenis'
+import 'lenis/dist/lenis.css'
 import { listReports, removeReport, saveReport } from './lib/storage'
 
 const API_URL = import.meta.env.VITE_AGENT_API_URL || 'http://127.0.0.1:8000'
@@ -70,9 +72,143 @@ const fadeUpView = {
   viewport: { once: true, amount: 0.3 }
 }
 
+/* Reusable staggered container + item for scroll-reveal grids */
+const staggerParent = {
+  initial: {},
+  whileInView: { transition: { staggerChildren: 0.09, delayChildren: 0.05 } },
+  viewport: { once: true, amount: 0.25 }
+}
+const revealItem = {
+  initial: { opacity: 0, y: 26, filter: 'blur(6px)' },
+  whileInView: { opacity: 1, y: 0, filter: 'blur(0px)', transition: { duration: 0.6, ease: easeOut } }
+}
+
+/* Word-level reveal child for the hero headline */
+const wordChild = {
+  initial: { opacity: 0, y: '0.5em', filter: 'blur(10px)' },
+  animate: { opacity: 1, y: '0em', filter: 'blur(0px)', transition: { duration: 0.7, ease: easeOut } }
+}
+const wordParent = {
+  initial: {},
+  animate: { transition: { staggerChildren: 0.08, delayChildren: 0.15 } }
+}
+
 const MDiv = motion.div
 const MSection = motion.section
 const MMain = motion.main
+
+/* Headline that reveals word-by-word with a cinematic blur + rise.
+   Each word+trailing-space is ONE inline-block so whitespace is preserved
+   (nested inline-blocks collapse the gap). No overflow mask → no clipping. */
+function WordReveal({ text, className }) {
+  const reduce = useReducedMotion()
+  if (reduce) return <span className={className}>{text}</span>
+  const words = text.split(' ')
+  return (
+    <motion.span className={className} variants={wordParent} initial="initial" animate="animate">
+      {words.map((word, i) => (
+        <motion.span key={i} variants={wordChild} style={{ display: 'inline-block', whiteSpace: 'pre', willChange: 'transform, filter' }}>
+          {i < words.length - 1 ? `${word} ` : word}
+        </motion.span>
+      ))}
+    </motion.span>
+  )
+}
+
+/* 3D tilt card that tracks the pointer with spring physics. */
+function TiltCard({ children, className, max = 8, scale = 1.02, ...rest }) {
+  const reduce = useReducedMotion()
+  const ref = useRef(null)
+  const mx = useMotionValue(0)
+  const my = useMotionValue(0)
+  const rx = useSpring(useTransform(my, [-0.5, 0.5], [max, -max]), { stiffness: 220, damping: 18 })
+  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-max, max]), { stiffness: 220, damping: 18 })
+
+  if (reduce) return <div ref={ref} className={className} {...rest}>{children}</div>
+
+  function onMove(e) {
+    const rect = ref.current?.getBoundingClientRect()
+    if (!rect) return
+    mx.set((e.clientX - rect.left) / rect.width - 0.5)
+    my.set((e.clientY - rect.top) / rect.height - 0.5)
+  }
+  function onLeave() { mx.set(0); my.set(0) }
+
+  return (
+    <motion.div
+      ref={ref}
+      className={className}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      whileHover={{ scale }}
+      style={{ rotateX: rx, rotateY: ry, transformPerspective: 900, transformStyle: 'preserve-3d', willChange: 'transform' }}
+      transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+      {...rest}
+    >
+      {children}
+    </motion.div>
+  )
+}
+
+/* Magnetic button — subtly pulls toward the cursor, snaps back with spring. */
+function Magnetic({ children, className, strength = 0.4, onClick, type = 'button', disabled, ...rest }) {
+  const reduce = useReducedMotion()
+  const ref = useRef(null)
+  const x = useSpring(useMotionValue(0), { stiffness: 300, damping: 20 })
+  const y = useSpring(useMotionValue(0), { stiffness: 300, damping: 20 })
+
+  function onMove(e) {
+    if (reduce) return
+    const rect = ref.current?.getBoundingClientRect()
+    if (!rect) return
+    x.set((e.clientX - (rect.left + rect.width / 2)) * strength)
+    y.set((e.clientY - (rect.top + rect.height / 2)) * strength)
+  }
+  function onLeave() { x.set(0); y.set(0) }
+
+  return (
+    <motion.button
+      ref={ref}
+      type={type}
+      className={className}
+      onClick={onClick}
+      disabled={disabled}
+      onMouseMove={onMove}
+      onMouseLeave={onLeave}
+      style={reduce ? undefined : { x, y }}
+      whileHover={{ scale: 1.03 }}
+      whileTap={{ scale: 0.97 }}
+      {...rest}
+    >
+      {children}
+    </motion.button>
+  )
+}
+
+/* Animated number count-up that fires when scrolled into view */
+function CountUp({ value, className }) {
+  const ref = useRef(null)
+  const inView = useInView(ref, { once: true, amount: 0.6 })
+  const reduce = useReducedMotion()
+  const [display, setDisplay] = useState(value)
+  const match = String(value).match(/^(\D*)([\d.,]+)(\D*)$/)
+
+  useEffect(() => {
+    if (!match) { setDisplay(value); return }
+    const [, prefix, numStr, suffix] = match
+    const target = parseFloat(numStr.replace(/,/g, ''))
+    const decimals = (numStr.split('.')[1] || '').length
+    if (reduce) { setDisplay(value); return }
+    if (!inView) { setDisplay(`${prefix}0${suffix}`); return }
+    const controls = animateValue(0, target, {
+      duration: 1.1, ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => setDisplay(`${prefix}${v.toFixed(decimals)}${suffix}`)
+    })
+    return () => controls.stop()
+  }, [inView, reduce]) // eslint-disable-line
+
+  return <strong ref={ref} className={className}>{display}</strong>
+}
 
 function Logo() {
   return (
@@ -122,6 +258,34 @@ function useTheme() {
 
 export default function App() {
   const { theme, toggle } = useTheme()
+  const { scrollYProgress } = useScroll()
+  const scaleX = useSpring(scrollYProgress, { stiffness: 140, damping: 28, restDelta: 0.001 })
+  const lenisRef = useRef(null)
+
+  useEffect(() => {
+    const lenis = new Lenis({
+      duration: 1.15,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      orientation: 'vertical',
+      gestureOrientation: 'vertical',
+      smoothWheel: true,
+      touchMultiplier: 1.5
+    })
+    lenisRef.current = lenis
+
+    function raf(time) {
+      lenis.raf(time)
+      requestAnimationFrame(raf)
+    }
+    const rafId = requestAnimationFrame(raf)
+
+    return () => {
+      cancelAnimationFrame(rafId)
+      lenis.destroy()
+      lenisRef.current = null
+    }
+  }, [])
+
   const [page, setPage] = useState(window.location.pathname.startsWith('/reports') ? 'reports' : window.location.pathname.startsWith('/report/') ? 'report' : window.location.pathname === '/analyze' ? 'analyze' : 'landing')
   const [reportId, setReportId] = useState(window.location.pathname.split('/').pop())
   const [reports, setReports] = useState([])
@@ -136,7 +300,17 @@ export default function App() {
   useEffect(() => { listReports().then(items => { setReports(items); if (page === 'report') setReport(items.find(item => item.analysis_id === reportId)) }) }, [])
   useEffect(() => { const onPop = () => { const path = window.location.pathname; setPage(path.startsWith('/reports') ? 'reports' : path.startsWith('/report/') ? 'report' : path === '/analyze' ? 'analyze' : 'landing'); setReportId(path.split('/').pop()) }; window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop) }, [])
 
-  function navigate(next, id = '') { const path = id ? `/report/${id}` : next === 'analyze' ? '/analyze' : next === 'reports' ? '/reports' : '/'; window.history.pushState({}, '', path); setPage(next); if (id) setReportId(id); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  function navigate(next, id = '') {
+    const path = id ? `/report/${id}` : next === 'analyze' ? '/analyze' : next === 'reports' ? '/reports' : '/'
+    window.history.pushState({}, '', path)
+    setPage(next)
+    if (id) setReportId(id)
+    if (lenisRef.current) {
+      lenisRef.current.scrollTo(0, { immediate: true })
+    } else {
+      window.scrollTo({ top: 0, behavior: 'instant' })
+    }
+  }
   function openReport(item) { setReport(item); navigate('report', item.analysis_id) }
 
   async function runAnalysis() {
@@ -183,8 +357,17 @@ export default function App() {
   async function deleteReport(id) { await removeReport(id); const next = await listReports(); setReports(next); if (report?.analysis_id === id) { setReport(null); navigate('reports') } }
   function download(name, content, type) { const url = URL.createObjectURL(new Blob([content], { type })); const anchor = document.createElement('a'); anchor.href = url; anchor.download = name; anchor.click(); URL.revokeObjectURL(url) }
 
+  function scrollToFeatures() {
+    if (lenisRef.current) {
+      lenisRef.current.scrollTo('#features', { offset: -30, duration: 1.15 })
+    } else {
+      document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
   return (
     <div className="site-shell">
+      <motion.div className="scroll-progress" style={{ scaleX }} aria-hidden />
       <motion.header className="site-nav" initial={{ y: -72, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5, ease: easeOut }}>
         <motion.button className="brand-button" onClick={() => navigate('landing')} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Logo /></motion.button>
 
@@ -224,7 +407,7 @@ export default function App() {
       </motion.header>
 
       <AnimatePresence mode="wait">
-        {page === 'landing' && <Landing key="landing" onStart={() => navigate('analyze')} onReports={() => navigate('reports')} />}
+        {page === 'landing' && <Landing key="landing" onStart={() => navigate('analyze')} onReports={() => navigate('reports')} onLearnMore={scrollToFeatures} />}
         {page === 'analyze' && <Analyze key="analyze" file={file} setFile={setFile} query={query} setQuery={setQuery} running={running} step={step} error={error} onRun={runAnalysis} onReports={() => navigate('reports')} />}
         {page === 'reports' && <Reports key="reports" reports={reports} onOpen={openReport} onDelete={deleteReport} onNew={() => navigate('analyze')} />}
         {page === 'report' && <ReportPage key="report" report={report || reports.find(item => item.analysis_id === reportId)} saved={reports.some(item => item.analysis_id === reportId)} onSave={async item => { await saveReport(item); setReports(await listReports()) }} onBack={() => navigate('reports')} download={download} />}
@@ -233,13 +416,13 @@ export default function App() {
   )
 }
 
-function Landing({ onStart, onReports }) {
+function Landing({ onStart, onReports, onLearnMore }) {
   return (
     <MMain className="landing" variants={pageMotion} initial="initial" animate="animate" exit="exit">
       {/* ============================ HERO (full section) ============================ */}
-      <section className="relative flex min-h-[calc(100svh-60px)] flex-col items-center justify-center px-5 py-10 text-center">
+      <section className="relative flex min-h-[calc(100svh-60px)] flex-col items-center justify-center overflow-x-clip px-5 py-10 text-center">
         {/* animated ambient glow */}
-        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[-60px] -z-10 h-[460px] w-[760px] max-w-[120vw] -translate-x-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(124,58,237,0.22),transparent_70%)] blur-2xl motion-safe:animate-[var(--animate-blob)]" />
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[-60px] -z-10 h-[460px] w-[92vw] max-w-[680px] -translate-x-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(124,58,237,0.22),transparent_70%)] blur-2xl motion-safe:animate-[var(--animate-blob)]" />
 
         <motion.button
           className="group mb-6 inline-flex max-w-full items-center gap-2 whitespace-nowrap rounded-full border border-hairline-strong bg-panel py-1 pl-1.5 pr-3 text-[11.5px] font-medium text-ink-soft shadow-sm transition-colors hover:border-brand-line sm:text-[12px]"
@@ -251,8 +434,9 @@ function Landing({ onStart, onReports }) {
         </motion.button>
 
         <motion.h1 className="m-0 font-display text-[clamp(32px,5vw,58px)] font-medium leading-[1.0] tracking-[-0.04em] text-ink" variants={rise}>
-          See what your data <em className="bg-[linear-gradient(100deg,var(--color-brand),var(--color-brand-hot))] bg-clip-text not-italic text-transparent">hides</em>,
-          <br className="hidden sm:block" /> before you train.
+          <WordReveal text="See what your data" />{' '}
+          <em className="text-shimmer bg-[linear-gradient(100deg,var(--color-brand),var(--color-brand-hot),var(--color-brand))] bg-clip-text not-italic text-transparent">hides</em>,
+          <br className="hidden sm:block" /> <WordReveal text="before you train." />
         </motion.h1>
 
         <motion.p className="mt-4 max-w-[42ch] text-[clamp(14px,1.3vw,16px)] leading-relaxed text-ink-soft" variants={rise}>
@@ -260,9 +444,9 @@ function Landing({ onStart, onReports }) {
           <br className="hidden sm:block" /> your data into a decision-ready brief.
         </motion.p>
 
-        <motion.div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-3" variants={rise}>
-          <motion.button className="primary-cta w-full justify-center !px-5 !py-2.5 !text-[13px] sm:w-auto" onClick={onStart} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>Start an analysis <ArrowUpRight size={15} /></motion.button>
-          <motion.button className="ghost-cta w-full justify-center !px-4 !py-2.5 !text-[13px] sm:w-auto" onClick={onReports} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>Learn more <ChevronRight size={14} /></motion.button>
+        <motion.div className="mt-6 flex flex-row flex-wrap items-center justify-center gap-2.5 sm:gap-3" variants={rise}>
+          <Magnetic className="primary-cta justify-center !px-3.5 !py-2 !text-[12px] sm:!px-5 sm:!py-2.5 sm:!text-[13px]" onClick={onStart}>Start an analysis <ArrowUpRight size={14} /></Magnetic>
+          <Magnetic className="ghost-cta justify-center !px-3.5 !py-2 !text-[12px] sm:!px-4 sm:!py-2.5 sm:!text-[13px]" onClick={onLearnMore || onReports} strength={0.25}>Learn more <ChevronRight size={14} /></Magnetic>
         </motion.div>
 
         <motion.div className="mt-7 flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-xs text-ink-dim" variants={rise}>
@@ -273,7 +457,7 @@ function Landing({ onStart, onReports }) {
       </section>
 
       {/* ====================== LIVE PREVIEW (separate full section) ====================== */}
-      <section className="relative px-5 pt-14 pb-16 sm:pt-16 sm:pb-18">
+      <section id="preview" className="relative overflow-x-clip px-5 pt-14 pb-16 sm:pt-16 sm:pb-18">
         <motion.div
           className="mx-auto mb-7 max-w-[640px] text-center"
           initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.4 }} transition={{ duration: 0.5, ease: easeOut }}
@@ -291,9 +475,10 @@ function Landing({ onStart, onReports }) {
           transition={{ duration: 0.7, ease: easeOut }}
         >
           {/* soft ambient glow */}
-          <div aria-hidden className="pointer-events-none absolute left-1/2 top-8 -z-10 h-[320px] w-[560px] max-w-[110vw] -translate-x-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(79,70,229,0.12),transparent_70%)] blur-2xl" />
+          <div aria-hidden className="pointer-events-none absolute left-1/2 top-8 -z-10 h-[320px] w-[90vw] max-w-[520px] -translate-x-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(79,70,229,0.12),transparent_70%)] blur-2xl" />
 
           {/* single elegant chart card */}
+          <TiltCard className="chart-tilt" max={6} scale={1.015}>
           <figure className="m-0 overflow-hidden rounded-[20px] border border-hairline bg-panel shadow-[0_8px_16px_rgba(16,24,40,0.05),0_36px_80px_-28px_rgba(16,24,40,0.26)]">
             {/* header */}
             <figcaption className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-5 sm:px-8">
@@ -329,6 +514,7 @@ function Landing({ onStart, onReports }) {
               </div>
             </div>
           </figure>
+          </TiltCard>
 
           {/* minimal verified-metric footer */}
           <motion.div
@@ -340,9 +526,9 @@ function Landing({ onStart, onReports }) {
               ['Return rate', '20.0%'],
               ['Rating correlation', '+0.68']
             ].map(([k, v], i) => (
-              <div key={k} className={`px-5 py-4 text-center ${i < 2 ? 'border-r border-hairline' : ''}`}>
-                <strong className="block font-display text-[18px] font-extrabold tracking-[-0.02em] text-ink">{v}</strong>
-                <small className="mt-1 block text-[11px] text-ink-dim">{k}</small>
+              <div key={k} className={`px-2.5 py-3 sm:px-5 sm:py-4 text-center ${i < 2 ? 'border-r border-hairline' : ''}`}>
+                <strong className="block font-display text-[15px] sm:text-[18px] font-extrabold tracking-[-0.02em] text-ink">{v}</strong>
+                <small className="mt-1 block truncate text-[10px] sm:text-[11px] text-ink-dim">{k}</small>
               </div>
             ))}
           </motion.div>
@@ -357,21 +543,21 @@ function Landing({ onStart, onReports }) {
         </div>
       </motion.section>
 
-      <section className="section features">
+      <section className="section features" id="features">
         <motion.div className="section-head center" {...fadeUpView}>
           <p className="eyebrow"><span /> WHAT'S INSIDE</p>
           <h2>Everything you need to turn a dataset into a decision.</h2>
           <p className="section-lead">DataSnap handles the full path — profiling, planning, execution and synthesis — so you can focus on the call you need to make.</p>
         </motion.div>
-        <div className="feature-grid">
-          {FEATURES.map((f, i) => (
-            <motion.article className="feature-card" key={f.title} initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.3 }} transition={{ duration: 0.5, ease: easeOut, delay: (i % 3) * 0.08 }} whileHover={{ y: -5 }}>
-              <span className="feature-icon"><f.icon size={20} /></span>
+        <motion.div className="feature-grid" variants={staggerParent} initial="initial" whileInView="whileInView" viewport={{ once: true, amount: 0.2 }}>
+          {FEATURES.map((f) => (
+            <motion.article className="feature-card group" key={f.title} variants={revealItem} whileHover={{ y: -6 }} transition={{ type: 'spring', stiffness: 300, damping: 22 }}>
+              <motion.span className="feature-icon" whileHover={{ rotate: -8, scale: 1.08 }} transition={{ type: 'spring', stiffness: 400, damping: 12 }}><f.icon size={20} /></motion.span>
               <h3>{f.title}</h3>
               <p>{f.body}</p>
             </motion.article>
           ))}
-        </div>
+        </motion.div>
       </section>
 
       <section className="section how">
@@ -380,24 +566,24 @@ function Landing({ onStart, onReports }) {
           <h2>From raw file to decision brief in four steps.</h2>
           <p className="section-lead">A guided, transparent flow. You stay in control at every stage while the agent does the heavy lifting.</p>
         </motion.div>
-        <div className="how-steps">
+        <motion.div className="how-steps" variants={staggerParent} initial="initial" whileInView="whileInView" viewport={{ once: true, amount: 0.2 }}>
           {HOW.map((s, i) => (
-            <motion.div className="how-step" key={s.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.4 }} transition={{ duration: 0.45, ease: easeOut, delay: i * 0.07 }}>
+            <motion.div className="how-step group" key={s.title} variants={revealItem}>
               <div className="how-step-top">
-                <span className="how-icon"><s.icon size={19} /></span>
+                <motion.span className="how-icon" whileHover={{ rotate: -8, scale: 1.08 }} transition={{ type: 'spring', stiffness: 400, damping: 12 }}><s.icon size={19} /></motion.span>
                 <span className="how-kicker">{String(i + 1).padStart(2, '0')}</span>
               </div>
               <h3>{s.title}</h3>
               <p>{s.body}</p>
             </motion.div>
           ))}
-        </div>
+        </motion.div>
       </section>
 
-      <motion.section className="stats-band" {...fadeUpView}>
-        {STATS.map((s, i) => (
-          <motion.div className="stat" key={s.label} initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: i * 0.08, duration: 0.5 }}>
-            <strong>{s.value}</strong><span>{s.label}</span>
+      <motion.section className="stats-band" variants={staggerParent} initial="initial" whileInView="whileInView" viewport={{ once: true, amount: 0.3 }}>
+        {STATS.map((s) => (
+          <motion.div className="stat" key={s.label} variants={revealItem}>
+            <CountUp value={s.value} /><span>{s.label}</span>
           </motion.div>
         ))}
       </motion.section>
@@ -415,18 +601,18 @@ function Landing({ onStart, onReports }) {
         </motion.div>
       </section>
 
-      <footer className="site-footer">
-        <div className="footer-brand">
+      <motion.footer className="site-footer" variants={staggerParent} initial="initial" whileInView="whileInView" viewport={{ once: true, amount: 0.2 }}>
+        <motion.div className="footer-brand" variants={revealItem}>
           <Logo />
           <p>Decision intelligence that turns a question and a dataset into verified, decision-ready evidence.</p>
-        </div>
-        <div className="footer-links">
+        </motion.div>
+        <motion.div className="footer-links" variants={revealItem}>
           <div><h4>Product</h4><button onClick={onStart}>Start analysis</button><button onClick={onReports}>Saved reports</button></div>
-          <div><h4>Trust</h4><span>Isolated execution</span><span>Private by default</span><span>Verified metrics</span></div>
-          <div><h4>Formats</h4><span>CSV · TSV · JSON</span><span>XLSX · Parquet</span><span>JSONL</span></div>
-        </div>
+          <div><h4>Trust</h4><span className="lnk">Isolated execution</span><span className="lnk">Private by default</span><span className="lnk">Verified metrics</span></div>
+          <div><h4>Formats</h4><span className="lnk">CSV · TSV · JSON</span><span className="lnk">XLSX · Parquet</span><span className="lnk">JSONL</span></div>
+        </motion.div>
         <div className="footer-base"><span>© {new Date().getFullYear()} DataSnap</span><span>Built for fast, evidence-first decisions.</span></div>
-      </footer>
+      </motion.footer>
     </MMain>
   )
 }
@@ -765,31 +951,56 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
               </span>
             </div>
 
+            {/* Cinematic progress bar */}
+            <div className="studio-progress-track">
+              <motion.div
+                className="studio-progress-fill"
+                initial={false}
+                animate={{ width: running ? `${((step + 1) / PIPELINE_STAGES.length) * 100}%` : '0%' }}
+                transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+              />
+            </div>
+
             {/* Stage Progress List */}
             <div className="studio-pipeline-list">
               {PIPELINE_STAGES.map((s, index) => {
                 const isDone = step > index
                 const isCurrent = running && step === index
                 return (
-                  <div key={s.id} className={`studio-stage-row ${isDone ? 'done' : ''} ${isCurrent ? 'current' : ''}`}>
+                  <motion.div
+                    key={s.id}
+                    layout
+                    className={`studio-stage-row ${isDone ? 'done' : ''} ${isCurrent ? 'current' : ''}`}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.07, duration: 0.4, ease: easeOut }}
+                  >
                     <span className="studio-stage-badge">
-                      {isDone ? (
-                        <Check size={12} className="text-ok" />
-                      ) : isCurrent ? (
-                        <LoaderCircle size={12} className="spin text-brand" />
-                      ) : (
-                        <span className="font-mono text-[10px] text-ink-dim">0{index + 1}</span>
-                      )}
+                      <AnimatePresence mode="wait" initial={false}>
+                        {isDone ? (
+                          <motion.span key="done" initial={{ scale: 0, rotate: -90 }} animate={{ scale: 1, rotate: 0 }} exit={{ scale: 0 }} transition={{ type: 'spring', stiffness: 400, damping: 15 }} style={{ display: 'grid' }}>
+                            <Check size={12} className="text-ok" />
+                          </motion.span>
+                        ) : isCurrent ? (
+                          <motion.span key="run" initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0 }} style={{ display: 'grid' }}>
+                            <LoaderCircle size={12} className="spin text-brand" />
+                          </motion.span>
+                        ) : (
+                          <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="font-mono text-[10px] text-ink-dim">0{index + 1}</motion.span>
+                        )}
+                      </AnimatePresence>
                     </span>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <strong className="text-[13px] font-medium text-ink">{s.title}</strong>
-                        {isCurrent && <span className="font-mono text-[9px] uppercase tracking-wider text-brand">Running</span>}
-                        {isDone && <span className="font-mono text-[9px] uppercase tracking-wider text-ok">Passed</span>}
+                        <AnimatePresence mode="wait">
+                          {isCurrent && <motion.span key="r" initial={{ opacity: 0, x: 6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0 }} className="font-mono text-[9px] uppercase tracking-wider text-brand">Running</motion.span>}
+                          {isDone && <motion.span key="p" initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }} className="font-mono text-[9px] uppercase tracking-wider text-ok">Passed</motion.span>}
+                        </AnimatePresence>
                       </div>
                       <p className="truncate text-[11px] text-ink-dim">{s.detail}</p>
                     </div>
-                  </div>
+                  </motion.div>
                 )
               })}
             </div>
