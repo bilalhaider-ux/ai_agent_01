@@ -285,29 +285,29 @@
 }
 
 * { box-sizing: border-box; }
+/* overflow-x: clip (NOT hidden) prevents horizontal scroll WITHOUT turning
+   html/body into a vertical scroll container — hidden forces overflow-y:auto
+   and produces a second scrollbar next to the browser's native one. */
 html {
   margin: 0;
   padding: 0;
   width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
+  overflow-x: clip;
   -webkit-text-size-adjust: 100%;
 }
 body {
   margin: 0;
   padding: 0;
   width: 100%;
-  max-width: 100vw;
   min-width: 320px;
-  overflow-x: hidden;
+  overflow-x: clip;
   background: var(--bg);
   position: relative;
 }
+/* Let Lenis manage height; keep horizontal clipping only. */
 html.lenis,
 html.lenis body {
   height: auto;
-  overflow-x: hidden !important;
-  max-width: 100vw !important;
 }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: 0; }
@@ -325,11 +325,9 @@ a { color: inherit; }
   position: relative;
   min-height: 100vh;
   width: 100%;
-  max-width: 100vw;
   color: var(--text);
   background: var(--bg);
   isolation: isolate;
-  overflow-x: hidden;
 }
 /* Soft tinted glow at the top — subtle, premium */
 .site-shell::before {
@@ -1352,7 +1350,53 @@ a { color: inherit; }
 @media (max-width: 960px) {
   .studio-grid {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
+}
+
+/* ---- Analyze Studio: tablet & mobile UX overhaul --------------------- */
+@media (max-width: 720px) {
+  .studio-workspace { padding: 28px clamp(14px, 4vw, 24px) 56px; }
+
+  /* Header: stack vertically, full-width action */
+  .studio-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    margin-bottom: 22px;
+  }
+  .studio-reports-btn { justify-content: center; padding: 10px 14px; }
+
+  .studio-main-col, .studio-side-col { gap: 16px; }
+  .studio-card { padding: 18px; border-radius: var(--radius); }
+
+  /* Card headers wrap instead of cramming */
+  .studio-card-head {
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 10px 12px;
+    margin-bottom: 16px;
+  }
+
+  /* Control bar: info stacks above a full-width Run button */
+  .studio-control-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .studio-run-btn { justify-content: center; width: 100%; padding: 12px 18px; font-size: 14px; }
+
+  /* Staged file card: let actions wrap below the file meta */
+  .staged-file-card .flex.items-start { flex-wrap: wrap; }
+
+  /* Dropzone a touch tighter */
+  .studio-dropzone { padding: 26px 16px; }
+}
+
+@media (max-width: 420px) {
+  .studio-card { padding: 15px; }
+  .studio-card-head strong { font-size: 13.5px; }
+  .studio-stage-row { padding: 8px; gap: 10px; }
 }
 
 /* -------------------------------------------------------------- Reports -- */
@@ -1747,8 +1791,7 @@ a { color: inherit; }
     padding-left: 14px;
     padding-right: 14px;
     width: 100%;
-    max-width: 100vw;
-    overflow-x: hidden;
+    overflow-x: clip;
   }
   .hero { padding: 44px 0 50px; }
   .hero h1 { font-size: 34px; }
