@@ -396,9 +396,9 @@ export default function App() {
               )}
             </AnimatePresence>
           </motion.button>
-          <button className="hidden rounded-[10px] px-3 py-2 text-[13.5px] font-medium text-ink-dim transition-colors hover:text-ink sm:inline" onClick={() => navigate('reports')}>Reports</button>
+          <button className="rounded-[10px] px-2.5 py-2 text-[13px] font-medium text-ink-dim transition-colors hover:text-ink sm:px-3 sm:text-[13.5px]" onClick={() => navigate('reports')}>Reports</button>
           <motion.button
-            className="inline-flex items-center gap-1.5 rounded-[11px] border border-hairline-strong bg-panel px-4 py-2 text-[13.5px] font-semibold text-ink shadow-sm transition-colors hover:border-brand-line hover:text-brand"
+            className="hidden min-[400px]:inline-flex items-center gap-1.5 rounded-[11px] border border-hairline-strong bg-panel px-3.5 py-2 text-[13px] font-semibold text-ink shadow-sm transition-colors hover:border-brand-line hover:text-brand sm:px-4 sm:text-[13.5px]"
             onClick={() => navigate('analyze')} whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }}
           >
             Start free

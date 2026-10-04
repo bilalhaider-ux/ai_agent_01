@@ -1811,6 +1811,12 @@ a { color: inherit; }
   .hero-trust { gap: 12px; }
   .workspace, .reports-page, .report-page { padding-top: 36px; }
   .workspace-intro, .page-heading { flex-direction: column; align-items: flex-start; }
+  /* Legal pages */
+  .legal-page { padding-top: 28px; padding-bottom: 56px; }
+  .legal-head { padding: 26px 20px 24px; }
+  .legal-head-icon { width: 42px; height: 42px; margin-bottom: 14px; }
+  .legal-footer-nav > div { flex-direction: column; }
+  .legal-footer-nav button { width: 100%; justify-content: space-between; }
 }
 @media (max-width: 520px) {
   .stats-band { grid-template-columns: 1fr; }
@@ -1821,8 +1827,15 @@ a { color: inherit; }
   .input-footer .primary-cta { justify-content: center; }
   .report-row { grid-template-columns: 1fr 36px; }
   .report-status { display: none; }
-  .report-page-nav { flex-direction: column; align-items: flex-start; gap: 16px; }
-  .report-actions { flex-wrap: wrap; }
+  .report-page-nav { flex-direction: column; align-items: stretch; gap: 16px; }
+  .report-actions { flex-wrap: wrap; gap: 8px; }
+  .report-actions .verified { width: 100%; margin-right: 0; margin-bottom: 2px; }
+  .report-actions .save-button { flex: 1 1 100%; justify-content: center; }
+  .report-actions .outline-button { flex: 1 1 0; justify-content: center; }
+  /* Reports library heading: full-width CTA when stacked */
+  .page-heading .primary-cta.small { width: 100%; justify-content: center; margin-top: 4px; }
+  /* Footer credit wraps cleanly */
+  .footer-credit { display: flex; flex-wrap: wrap; gap: 4px 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
