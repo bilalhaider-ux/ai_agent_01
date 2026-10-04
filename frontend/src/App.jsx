@@ -43,6 +43,16 @@ const STATS = [
   { value: '0', label: 'Accounts required' }
 ]
 
+/* ---- Grounded preview data (sample_sales_data.csv, exactly what the agent computes) ---- */
+// Total Revenue by Product Category (Polars group_by, sorted desc)
+const PREVIEW_CATEGORIES = [
+  { label: 'Electronics', value: 9801.59 },
+  { label: 'Home & Kitchen', value: 1789.0 },
+  { label: 'Sports', value: 1156.9 },
+  { label: 'Fashion', value: 1019.0 },
+  { label: 'Beauty', value: 869.15 }
+]
+
 /* ---------------------------------------------------------------- motion -- */
 const easeOut = [0.22, 1, 0.36, 1]
 const pageMotion = {
@@ -51,8 +61,8 @@ const pageMotion = {
   exit: { opacity: 0, y: -12, transition: { duration: 0.25, ease: 'easeIn' } }
 }
 const rise = {
-  initial: { opacity: 0, y: 22 },
-  animate: { opacity: 1, y: 0, transition: { duration: 0.6, ease: easeOut } }
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0, transition: { duration: 0.5, ease: easeOut } }
 }
 const fadeUpView = {
   initial: { opacity: 0, y: 28 },
@@ -137,39 +147,110 @@ export default function App() {
 function Landing({ onStart, onReports }) {
   return (
     <MMain className="landing" variants={pageMotion} initial="initial" animate="animate" exit="exit">
-      <section className="hero">
-        <div className="hero-copy">
-          <motion.div className="hero-badge" variants={rise}><b>NEW</b> Decision intelligence, on tap</motion.div>
-          <motion.h1 variants={rise}>Find the signal <em>inside your data.</em></motion.h1>
-          <motion.p className="hero-sub" variants={rise}>Upload a dataset, ask a business question, and get a clear decision brief backed by machine-verified evidence.</motion.p>
-          <motion.div className="hero-actions" variants={rise}>
-            <motion.button className="primary-cta" onClick={onStart} whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }}>Start an analysis <ArrowUpRight size={17} /></motion.button>
-            <button className="text-button" onClick={onReports}>View saved reports <ChevronRight size={15} /></button>
-          </motion.div>
-          <motion.div className="hero-trust" variants={rise}>
-            <span><ShieldCheck size={15} /> Isolated execution</span>
-            <span><Check size={15} /> Evidence-first output</span>
-            <span><Zap size={15} /> Built for fast answers</span>
-          </motion.div>
-        </div>
+      {/* ============================ HERO (full section) ============================ */}
+      <section className="relative flex flex-col items-center px-5 pt-20 pb-16 text-center sm:pt-24 sm:pb-20 lg:pt-28">
+        {/* animated ambient glow */}
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[-60px] -z-10 h-[460px] w-[760px] max-w-[120vw] -translate-x-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(124,58,237,0.22),transparent_70%)] blur-2xl motion-safe:animate-[var(--animate-blob)]" />
 
-        <motion.div className="hero-visual" initial={{ opacity: 0, scale: 0.94, y: 24 }} animate={{ opacity: 1, scale: 1, y: 0 }} transition={{ duration: 0.8, ease: easeOut, delay: 0.2 }}>
-          <div className="visual-top"><span>● LIVE SIGNAL</span><span>ANALYSIS READY</span></div>
-          <motion.div className="signal-card" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.6, ease: easeOut }}>
-            <div className="signal-header"><div><small>REVENUE MOMENTUM</small><strong>+32.8%</strong></div><span className="signal-up">↗</span></div>
-            <div className="signal-chart">
-              {[26, 38, 31, 47, 44, 64, 57, 76, 92].map((h, i) => (
-                <motion.i key={i} initial={{ scaleY: 0 }} animate={{ scaleY: 1 }} transition={{ delay: 0.7 + i * 0.07, duration: 0.5, ease: easeOut }} style={{ height: `${h}%` }} />
-              ))}
+        <motion.div className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-hairline-strong bg-panel py-1.5 pl-1.5 pr-3.5 text-xs text-ink-soft shadow-sm" variants={rise}>
+          <b className="rounded-full bg-[linear-gradient(100deg,var(--color-brand),var(--color-brand-hot))] px-2.5 py-0.5 font-mono text-[10px] font-semibold text-white">NEW</b>
+          Decision intelligence for your data
+        </motion.div>
+
+        <motion.h1 className="m-0 max-w-[18ch] font-display text-[clamp(38px,6.6vw,80px)] font-extrabold leading-[1.0] tracking-[-0.045em] text-ink" variants={rise}>
+          See what your data <em className="bg-[linear-gradient(100deg,var(--color-brand),var(--color-brand-hot))] bg-clip-text not-italic text-transparent">hides</em> before you train.
+        </motion.h1>
+
+        <motion.p className="mt-6 max-w-[54ch] text-[clamp(15px,1.6vw,18px)] leading-relaxed text-ink-soft" variants={rise}>
+          Upload a dataset, ask the question that matters, and get a decision-ready brief — profiled, pressure-tested and verified before a single model sees it.
+        </motion.p>
+
+        <motion.div className="mt-9 flex w-full flex-col items-stretch justify-center gap-3.5 sm:w-auto sm:flex-row sm:items-center sm:gap-4" variants={rise}>
+          <motion.button className="primary-cta justify-center" onClick={onStart} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>Start an analysis <ArrowUpRight size={17} /></motion.button>
+          <motion.button className="ghost-cta justify-center" onClick={onReports} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>View reports <ChevronRight size={15} /></motion.button>
+        </motion.div>
+
+        <motion.div className="mt-10 flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-xs text-ink-dim" variants={rise}>
+          <span className="flex items-center gap-2"><ShieldCheck size={15} className="text-brand" /> Isolated execution</span>
+          <span className="flex items-center gap-2"><Check size={15} className="text-brand" /> Machine-verified metrics</span>
+          <span className="flex items-center gap-2"><Lock size={15} className="text-brand" /> No account required</span>
+        </motion.div>
+      </section>
+
+      {/* ====================== LIVE PREVIEW (separate full section) ====================== */}
+      <section className="relative px-5 pt-6 pb-24 sm:pb-28">
+        <motion.div
+          className="mx-auto mb-10 max-w-[640px] text-center"
+          initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.4 }} transition={{ duration: 0.5, ease: easeOut }}
+        >
+          <p className="eyebrow justify-center"><span /> LIVE PREVIEW</p>
+          <h2 className="mt-4 font-display text-[clamp(26px,3.2vw,40px)] font-extrabold leading-[1.08] tracking-[-0.035em] text-ink">A decision brief, rendered from your rows.</h2>
+          <p className="mx-auto mt-3 max-w-[480px] text-[15.5px] leading-relaxed text-ink-soft">One clear view — the signal your data was hiding, computed and verified.</p>
+        </motion.div>
+
+        <motion.div
+          className="relative mx-auto w-full max-w-[760px]"
+          initial={{ opacity: 0, y: 32 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true, amount: 0.3 }}
+          transition={{ duration: 0.7, ease: easeOut }}
+        >
+          {/* soft ambient glow */}
+          <div aria-hidden className="pointer-events-none absolute left-1/2 top-8 -z-10 h-[320px] w-[560px] max-w-[110vw] -translate-x-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(79,70,229,0.12),transparent_70%)] blur-2xl" />
+
+          {/* single elegant chart card */}
+          <figure className="m-0 overflow-hidden rounded-[20px] border border-hairline bg-panel shadow-[0_8px_16px_rgba(16,24,40,0.05),0_36px_80px_-28px_rgba(16,24,40,0.26)]">
+            {/* header */}
+            <figcaption className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-5 sm:px-8">
+              <div>
+                <span className="font-mono text-[10px] tracking-[0.14em] text-ink-dim">TOTAL REVENUE BY CATEGORY</span>
+                <strong className="mt-1.5 block font-display text-[22px] font-extrabold tracking-[-0.03em] text-ink">$14,635.64</strong>
+              </div>
+              <span className="flex items-center gap-1.5 rounded-full bg-ok-soft px-3 py-1.5 font-mono text-[9px] tracking-[0.12em] text-ok"><Check size={11} /> VERIFIED</span>
+            </figcaption>
+
+            {/* chart */}
+            <div className="px-6 pt-8 pb-6 sm:px-8">
+              <div className="flex items-end gap-3 sm:gap-5" style={{ height: 200 }}>
+                {PREVIEW_CATEGORIES.map((c, i) => {
+                  const pct = Math.round((c.value / PREVIEW_CATEGORIES[0].value) * 100)
+                  return (
+                    <div key={c.label} className="flex flex-1 flex-col items-center justify-end gap-2.5" style={{ height: '100%' }}>
+                      <span className="font-mono text-[10px] font-medium text-ink-dim">${(c.value / 1000).toFixed(1)}k</span>
+                      <motion.span
+                        className="w-full rounded-t-[6px]"
+                        style={{ height: `${pct}%`, background: i === 0 ? 'linear-gradient(to top, var(--color-brand), var(--color-brand-hot))' : '#e7e9fb', transformOrigin: 'bottom' }}
+                        initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ once: true }}
+                        transition={{ delay: 0.3 + i * 0.08, duration: 0.6, ease: easeOut }}
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="mt-3 flex gap-3 border-t border-hairline pt-3 sm:gap-5">
+                {PREVIEW_CATEGORIES.map((c) => (
+                  <span key={c.label} className="flex-1 truncate text-center text-[11px] text-ink-dim">{c.label.split(' ')[0]}</span>
+                ))}
+              </div>
             </div>
-            <div className="chart-axis"><span>JAN</span><span>APR</span><span>JUL</span><span>OCT</span></div>
+          </figure>
+
+          {/* minimal verified-metric footer */}
+          <motion.div
+            className="mt-5 grid grid-cols-3 overflow-hidden rounded-[16px] border border-hairline bg-panel shadow-sm"
+            initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.5, duration: 0.5, ease: easeOut }}
+          >
+            {[
+              ['Avg rating', '4.33'],
+              ['Return rate', '20.0%'],
+              ['Rating ↔ revenue', 'r +0.68']
+            ].map(([k, v], i) => (
+              <div key={k} className={`px-5 py-4 text-center ${i < 2 ? 'border-r border-hairline' : ''}`}>
+                <strong className="block font-display text-[18px] font-extrabold tracking-[-0.02em] text-ink">{v}</strong>
+                <small className="mt-1 block text-[11px] text-ink-dim">{k}</small>
+              </div>
+            ))}
           </motion.div>
-          <motion.div className="floating-card" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.1, duration: 0.5 }} whileHover={{ y: -4 }}>
-            <div className="mini-icon"><BarChart3 size={16} /></div>
-            <div><strong>Decision brief</strong><small>6 verified insights</small></div>
-            <Check size={16} />
-          </motion.div>
-          <div className="visual-caption"><span>01</span><p>From raw rows to a decision-ready view.</p></div>
         </motion.div>
       </section>
 
@@ -182,7 +263,7 @@ function Landing({ onStart, onReports }) {
       </motion.section>
 
       <section className="section features">
-        <motion.div className="section-head" {...fadeUpView}>
+        <motion.div className="section-head center" {...fadeUpView}>
           <p className="eyebrow"><span /> WHAT'S INSIDE</p>
           <h2>Everything you need to turn a dataset into a decision.</h2>
           <p className="section-lead">DataSnap handles the full path — profiling, planning, execution and synthesis — so you can focus on the call you need to make.</p>
@@ -199,21 +280,20 @@ function Landing({ onStart, onReports }) {
       </section>
 
       <section className="section how">
-        <motion.div className="section-head" {...fadeUpView}>
+        <motion.div className="section-head center" {...fadeUpView}>
           <p className="eyebrow"><span /> HOW IT WORKS</p>
           <h2>From raw file to decision brief in four steps.</h2>
           <p className="section-lead">A guided, transparent flow. You stay in control at every stage while the agent does the heavy lifting.</p>
         </motion.div>
         <div className="how-steps">
           {HOW.map((s, i) => (
-            <motion.div className="how-step" key={s.title} initial={{ opacity: 0, y: 26 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.4 }} transition={{ duration: 0.5, ease: easeOut, delay: i * 0.08 }}>
+            <motion.div className="how-step" key={s.title} initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.4 }} transition={{ duration: 0.45, ease: easeOut, delay: i * 0.07 }}>
               <div className="how-step-top">
                 <span className="how-icon"><s.icon size={19} /></span>
-                <span className="how-kicker">{s.kicker}</span>
+                <span className="how-kicker">{String(i + 1).padStart(2, '0')}</span>
               </div>
               <h3>{s.title}</h3>
               <p>{s.body}</p>
-              {i < HOW.length - 1 && <span className="how-connector" aria-hidden><ChevronRight size={16} /></span>}
             </motion.div>
           ))}
         </div>
@@ -234,8 +314,8 @@ function Landing({ onStart, onReports }) {
           <h2>Ask your data a better question.</h2>
           <p>Upload a dataset and get a decision-ready brief in minutes. No account, no setup, private by default.</p>
           <div className="hero-actions">
-            <motion.button className="primary-cta" onClick={onStart} whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.97 }}>Start an analysis <ArrowUpRight size={17} /></motion.button>
-            <button className="text-button" onClick={onReports}>View saved reports <ChevronRight size={15} /></button>
+            <motion.button className="primary-cta" onClick={onStart} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>Start an analysis <ArrowUpRight size={17} /></motion.button>
+            <motion.button className="ghost-cta" onClick={onReports} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>View saved reports <ChevronRight size={15} /></motion.button>
           </div>
         </motion.div>
       </section>
