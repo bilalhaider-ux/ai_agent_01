@@ -286,7 +286,7 @@ export default function App() {
     }
   }, [])
 
-  const [page, setPage] = useState(window.location.pathname.startsWith('/reports') ? 'reports' : window.location.pathname.startsWith('/report/') ? 'report' : window.location.pathname === '/analyze' ? 'analyze' : 'landing')
+  const [page, setPage] = useState(window.location.pathname.startsWith('/reports') ? 'reports' : window.location.pathname.startsWith('/report/') ? 'report' : window.location.pathname === '/analyze' ? 'analyze' : window.location.pathname === '/privacy' ? 'privacy' : window.location.pathname === '/terms' ? 'terms' : window.location.pathname === '/security' ? 'security' : 'landing')
   const [reportId, setReportId] = useState(window.location.pathname.split('/').pop())
   const [reports, setReports] = useState([])
   const [report, setReport] = useState(null)
@@ -298,10 +298,10 @@ export default function App() {
   const [quota, setQuota] = useState(null)
 
   useEffect(() => { listReports().then(items => { setReports(items); if (page === 'report') setReport(items.find(item => item.analysis_id === reportId)) }) }, [])
-  useEffect(() => { const onPop = () => { const path = window.location.pathname; setPage(path.startsWith('/reports') ? 'reports' : path.startsWith('/report/') ? 'report' : path === '/analyze' ? 'analyze' : 'landing'); setReportId(path.split('/').pop()) }; window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop) }, [])
+  useEffect(() => { const onPop = () => { const path = window.location.pathname; setPage(path.startsWith('/reports') ? 'reports' : path.startsWith('/report/') ? 'report' : path === '/analyze' ? 'analyze' : path === '/privacy' ? 'privacy' : path === '/terms' ? 'terms' : path === '/security' ? 'security' : 'landing'); setReportId(path.split('/').pop()) }; window.addEventListener('popstate', onPop); return () => window.removeEventListener('popstate', onPop) }, [])
 
   function navigate(next, id = '') {
-    const path = id ? `/report/${id}` : next === 'analyze' ? '/analyze' : next === 'reports' ? '/reports' : '/'
+    const path = id ? `/report/${id}` : next === 'analyze' ? '/analyze' : next === 'reports' ? '/reports' : next === 'privacy' ? '/privacy' : next === 'terms' ? '/terms' : next === 'security' ? '/security' : '/'
     window.history.pushState({}, '', path)
     setPage(next)
     if (id) setReportId(id)
@@ -407,16 +407,118 @@ export default function App() {
       </motion.header>
 
       <AnimatePresence mode="wait">
-        {page === 'landing' && <Landing key="landing" onStart={() => navigate('analyze')} onReports={() => navigate('reports')} onLearnMore={scrollToFeatures} />}
+        {page === 'landing' && <Landing key="landing" onStart={() => navigate('analyze')} onReports={() => navigate('reports')} onLearnMore={scrollToFeatures} onNavigate={navigate} />}
         {page === 'analyze' && <Analyze key="analyze" file={file} setFile={setFile} query={query} setQuery={setQuery} running={running} step={step} error={error} onRun={runAnalysis} onReports={() => navigate('reports')} />}
         {page === 'reports' && <Reports key="reports" reports={reports} onOpen={openReport} onDelete={deleteReport} onNew={() => navigate('analyze')} />}
         {page === 'report' && <ReportPage key="report" report={report || reports.find(item => item.analysis_id === reportId)} saved={reports.some(item => item.analysis_id === reportId)} onSave={async item => { await saveReport(item); setReports(await listReports()) }} onBack={() => navigate('reports')} download={download} />}
+        {page === 'privacy' && <LegalPage key="privacy" doc={LEGAL_PRIVACY} onBack={() => navigate('landing')} onNavigate={navigate} />}
+        {page === 'terms' && <LegalPage key="terms" doc={LEGAL_TERMS} onBack={() => navigate('landing')} onNavigate={navigate} />}
+        {page === 'security' && <LegalPage key="security" doc={LEGAL_SECURITY} onBack={() => navigate('landing')} onNavigate={navigate} />}
       </AnimatePresence>
     </div>
   )
 }
 
-function Landing({ onStart, onReports, onLearnMore }) {
+/* ----------------------------------------------------- Legal / policy -- */
+const LEGAL_UPDATED = 'October 2025'
+
+const LEGAL_PRIVACY = {
+  key: 'privacy',
+  icon: Lock,
+  eyebrow: 'LEGAL',
+  title: 'Privacy Policy',
+  intro: 'DataSnap is built to be private by default. This policy explains what data is processed when you run an analysis, how long it lives, and the third parties involved.',
+  sections: [
+    { h: 'Data you provide', p: 'When you run an analysis you upload a dataset file (CSV, XLSX, Parquet, TSV, JSON or JSONL) and a business question. These are sent to our API over an encrypted connection solely to produce your decision brief.' },
+    { h: 'How your dataset is used', p: 'Your dataset is profiled and analyzed inside a timed, isolated subprocess. It is processed in memory to compute metrics and generate charts. We do not use your uploaded data to train models, and it is not retained as a durable server-side archive.' },
+    { h: 'Saved reports stay in your browser', p: 'Reports are only stored when you explicitly save them, and they are kept locally in your browser using IndexedDB (with a localStorage fallback). They never leave your device unless you export them. Clearing site data or switching browser/device removes them.' },
+    { h: 'Third-party AI provider', p: 'To plan and synthesize analyses, relevant context is sent to our AI provider (Google Gemini) with an automatic fallback chain for transient failures. Their processing is governed by their own terms and privacy practices.' },
+    { h: 'Rate limiting', p: 'To prevent abuse we enforce an anonymous quota (five analyses per rolling hour). This uses a hashed identifier derived from your IP address and a browser token stored via Redis. We do not build advertising profiles from this data.' },
+    { h: 'No accounts', p: 'DataSnap requires no sign-up, so we do not collect names, emails, or passwords for this release.' },
+    { h: 'Your choices', p: 'You can clear your saved reports at any time from the Reports page or by clearing your browser site data. You control what you upload and what you choose to save.' }
+  ]
+}
+
+const LEGAL_TERMS = {
+  key: 'terms',
+  icon: FileText,
+  eyebrow: 'LEGAL',
+  title: 'Terms of Service',
+  intro: 'By using DataSnap you agree to these terms. They cover acceptable use, the limits of the service, and important disclaimers about the results it produces.',
+  sections: [
+    { h: 'Acceptable use', p: 'Use DataSnap only with data you have the right to analyze. Do not upload content that is illegal, infringing, or contains others’ personal data without authorization. Do not attempt to disrupt, overload, or reverse-engineer the service.' },
+    { h: 'Usage limits', p: 'Anonymous use is capped at five analyses per rolling hour. We may adjust limits or temporarily restrict access to protect availability for everyone.' },
+    { h: 'Results are decision support, not advice', p: 'Metrics are computed from your data, but statistical significance and correlation do not establish causation. Reports are intended to support human judgment and remain pending human review. DataSnap does not provide legal, financial, medical, or other professional advice.' },
+    { h: 'No warranty', p: 'The service is provided “as is” without warranties of any kind. We do not guarantee uninterrupted availability, or that generated code, metrics, or recommendations are free of error.' },
+    { h: 'Limitation of liability', p: 'To the maximum extent permitted by law, DataSnap and its contributors are not liable for any indirect, incidental, or consequential damages arising from use of the service or reliance on its output.' },
+    { h: 'Changes', p: 'We may update these terms as the product evolves. Continued use after an update constitutes acceptance of the revised terms.' }
+  ]
+}
+
+const LEGAL_SECURITY = {
+  key: 'security',
+  icon: ShieldCheck,
+  eyebrow: 'TRUST',
+  title: 'Security',
+  intro: 'Security and verifiability are core to how DataSnap is designed. This page summarizes the controls that protect your data and keep results trustworthy.',
+  sections: [
+    { h: 'Isolated execution', p: 'Generated Polars, SciPy and Matplotlib code runs in a timed, scoped subprocess separate from the main application, with automatic self-correction on runtime failures. Note: this is a timed sandbox, not a hardened multi-tenant container boundary.' },
+    { h: 'Machine-verified metrics', p: 'Every number in a report is computed from your data and JSON-serialized — never fabricated by the language model. This keeps the evidence in your brief grounded in the actual dataset.' },
+    { h: 'Encryption in transit', p: 'Traffic between your browser and the API is served over HTTPS in production. Provider API keys, Redis tokens, and signing secrets live only on the backend and are never exposed to the frontend.' },
+    { h: 'Data minimization', p: 'Uploaded datasets are processed in memory to produce your brief and are not kept as a durable server archive. Saved reports live only in your browser.' },
+    { h: 'Abuse protection', p: 'Anonymous quotas backed by Redis limit automated abuse, using signed, hashed identity keys rather than raw identifiers.' },
+    { h: 'Responsible disclosure', p: 'If you believe you have found a security issue, please contact the maintainers through the GitHub profiles linked in the footer so it can be addressed promptly.' }
+  ]
+}
+
+const LEGAL_DOCS = [LEGAL_PRIVACY, LEGAL_TERMS, LEGAL_SECURITY]
+
+function LegalPage({ doc, onBack, onNavigate }) {
+  const Icon = doc.icon
+  return (
+    <MMain className="legal-page" variants={pageMotion} initial="initial" animate="animate" exit="exit">
+      <motion.div className="legal-nav" variants={rise}>
+        <button className="text-button" onClick={onBack}><ArrowLeft size={15} /> Back to home</button>
+      </motion.div>
+
+      <motion.header className="legal-head" variants={rise}>
+        <span className="legal-head-icon"><Icon size={22} /></span>
+        <p className="eyebrow"><span /> {doc.eyebrow}</p>
+        <h1>{doc.title}</h1>
+        <p className="legal-intro">{doc.intro}</p>
+        <small className="legal-updated">Last updated: {LEGAL_UPDATED}</small>
+      </motion.header>
+
+      <motion.div className="legal-body" variants={rise}>
+        {doc.sections.map((s, i) => (
+          <motion.section
+            key={s.h}
+            className="legal-section"
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true, amount: 0.4 }}
+            transition={{ duration: 0.45, ease: easeOut, delay: (i % 4) * 0.05 }}
+          >
+            <h2><span className="legal-section-num">{String(i + 1).padStart(2, '0')}</span>{s.h}</h2>
+            <p>{s.p}</p>
+          </motion.section>
+        ))}
+      </motion.div>
+
+      <motion.div className="legal-footer-nav" variants={rise}>
+        <span>Related</span>
+        <div>
+          {LEGAL_DOCS.filter(d => d.key !== doc.key).map(d => (
+            <button key={d.key} onClick={() => onNavigate(d.key)}>{d.title} <ChevronRight size={14} /></button>
+          ))}
+        </div>
+      </motion.div>
+    </MMain>
+  )
+}
+
+
+function Landing({ onStart, onReports, onLearnMore, onNavigate }) {
   return (
     <MMain className="landing" variants={pageMotion} initial="initial" animate="animate" exit="exit">
       {/* ============================ HERO (full section) ============================ */}
@@ -608,10 +710,21 @@ function Landing({ onStart, onReports, onLearnMore }) {
         </motion.div>
         <motion.div className="footer-links" variants={revealItem}>
           <div><h4>Product</h4><button onClick={onStart}>Start analysis</button><button onClick={onReports}>Saved reports</button></div>
-          <div><h4>Trust</h4><span className="lnk">Isolated execution</span><span className="lnk">Private by default</span><span className="lnk">Verified metrics</span></div>
+          <div><h4>Trust</h4><button onClick={() => onNavigate('security')}>Isolated execution</button><button onClick={() => onNavigate('privacy')}>Private by default</button><button onClick={() => onNavigate('security')}>Verified metrics</button></div>
+          <div><h4>Legal</h4><button onClick={() => onNavigate('privacy')}>Privacy Policy</button><button onClick={() => onNavigate('terms')}>Terms of Service</button><button onClick={() => onNavigate('security')}>Security</button></div>
           <div><h4>Formats</h4><span className="lnk">CSV · TSV · JSON</span><span className="lnk">XLSX · Parquet</span><span className="lnk">JSONL</span></div>
         </motion.div>
-        <div className="footer-base"><span>© {new Date().getFullYear()} DataSnap</span><span>Built for fast, evidence-first decisions.</span></div>
+        <div className="footer-base">
+          <span>© {new Date().getFullYear()} DataSnap</span>
+          <span className="footer-credit">
+            UI/UX by{' '}
+            <a href="https://talhairfandev.me" target="_blank" rel="noopener noreferrer">Talha Irfan</a>
+            {' · Backend by '}
+            <a href="https://github.com/abdulrdeveloper" target="_blank" rel="noopener noreferrer">@abdulrdeveloper</a>
+            {' · ML by '}
+            <a href="https://github.com/bilalhaider-ux" target="_blank" rel="noopener noreferrer">Bilal Haider</a>
+          </span>
+        </div>
       </motion.footer>
     </MMain>
   )
