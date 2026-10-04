@@ -98,13 +98,24 @@ export default function App() {
     setRunning(true); setError(''); setStep(0)
     const payload = new FormData(); payload.append('query', query.trim()); payload.append('dataset', file); payload.append('provider', 'gemini')
     const timer = setInterval(() => setStep(current => Math.min(current + 1, STEPS.length - 1)), 1500)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 25_000)
     try {
-      const response = await fetch(`${API_URL}/api/v1/analyze`, { method: 'POST', body: payload, credentials: 'include' })
-      const body = await response.json()
+      const response = await fetch(`${API_URL}/api/v1/analyze`, { method: 'POST', body: payload, credentials: 'include', signal: controller.signal })
+      const contentType = response.headers.get('content-type') || ''
+      const body = contentType.includes('application/json') ? await response.json() : null
       setQuota({ remaining: response.headers.get('X-RateLimit-Remaining'), limit: response.headers.get('X-RateLimit-Limit') || '5' })
-      if (!response.ok) throw new Error(body.detail || body.error?.message || 'Analysis could not be completed.')
+      if (!response.ok) {
+        const detail = body?.detail || body?.error?.message
+        throw new Error(detail || `Analysis API returned HTTP ${response.status}. Check the backend logs for the upstream provider response.`)
+      }
       setReport(body); navigate('report', body.analysis_id)
-    } catch (requestError) { setError(requestError.message) } finally { clearInterval(timer); setRunning(false) }
+    } catch (requestError) {
+      const message = requestError.name === 'AbortError'
+        ? 'The analysis API did not respond within 25 seconds. The backend may be waiting on the AI provider or a platform request timeout.'
+        : requestError.message || 'The analysis request could not reach the API.'
+      setError(message)
+    } finally { clearTimeout(timeout); clearInterval(timer); setRunning(false) }
   }
 
   async function deleteReport(id) { await removeReport(id); const next = await listReports(); setReports(next); if (report?.analysis_id === id) { setReport(null); navigate('reports') } }
