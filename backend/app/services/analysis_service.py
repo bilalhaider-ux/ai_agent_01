@@ -19,8 +19,8 @@ def get_analysis(analysis_id: str) -> dict[str, Any] | None:
     return _analyses.get(analysis_id)
 
 
-def run_analysis(dataset_path: Path, query: str, provider: str | None, model: str | None) -> dict[str, Any]:
-    analysis_id = str(uuid.uuid4())
+def run_analysis(dataset_path: Path, query: str, provider: str | None, model: str | None, analysis_id: str | None = None) -> dict[str, Any]:
+    analysis_id = analysis_id or str(uuid.uuid4())
     record: dict[str, Any] = {"analysis_id": analysis_id, "status": "running"}
     _analyses[analysis_id] = record
     try:
