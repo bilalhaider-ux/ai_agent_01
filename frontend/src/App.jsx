@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Activity, ArrowLeft, ArrowUpRight, BarChart3, BrainCircuit, Check, ChevronRight, Database, Download, FileSearch, FileText, Gauge, LineChart, LoaderCircle, Lock, Play, Plus, Save, ShieldCheck, Sparkles, Table2, Terminal, UploadCloud, Workflow, X, Zap } from 'lucide-react'
+import { Activity, ArrowLeft, ArrowUpRight, BarChart3, BrainCircuit, Check, ChevronRight, Cpu, Database, Download, FileSearch, FileText, Gauge, LineChart, LoaderCircle, Lock, Moon, Play, Plus, Save, ShieldCheck, Sparkles, Sun, Table2, Terminal, UploadCloud, Workflow, X, Zap } from 'lucide-react'
 import { listReports, removeReport, saveReport } from './lib/storage'
 
 const API_URL = import.meta.env.VITE_AGENT_API_URL || 'http://127.0.0.1:8000'
@@ -84,7 +84,44 @@ function Logo() {
 }
 function dateLabel(value) { return value ? new Date(value).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Just now' }
 
+/* Theme: localStorage override → else system preference. Persists + applies data-theme. */
+function getInitialTheme() {
+  try {
+    const saved = localStorage.getItem('datasnap-theme')
+    if (saved === 'light' || saved === 'dark') return saved
+  } catch { /* ignore */ }
+  return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
+function useTheme() {
+  const [theme, setTheme] = useState(getInitialTheme)
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    const meta = document.querySelector('meta[name="theme-color"]')
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0b0e14' : '#ffffff')
+    try { localStorage.setItem('datasnap-theme', theme) } catch { /* ignore */ }
+  }, [theme])
+
+  // Follow system changes only when the user hasn't explicitly chosen.
+  useEffect(() => {
+    if (!window.matchMedia) return
+    const mql = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (event) => {
+      let saved = null
+      try { saved = localStorage.getItem('datasnap-theme') } catch { /* ignore */ }
+      if (saved !== 'light' && saved !== 'dark') setTheme(event.matches ? 'dark' : 'light')
+    }
+    mql.addEventListener?.('change', onChange)
+    return () => mql.removeEventListener?.('change', onChange)
+  }, [])
+
+  const toggle = () => setTheme(current => (current === 'dark' ? 'light' : 'dark'))
+  return { theme, toggle }
+}
+
 export default function App() {
+  const { theme, toggle } = useTheme()
   const [page, setPage] = useState(window.location.pathname.startsWith('/reports') ? 'reports' : window.location.pathname.startsWith('/report/') ? 'report' : window.location.pathname === '/analyze' ? 'analyze' : 'landing')
   const [reportId, setReportId] = useState(window.location.pathname.split('/').pop())
   const [reports, setReports] = useState([])
@@ -159,6 +196,23 @@ export default function App() {
 
         <div className="ml-auto flex items-center gap-2 sm:gap-3">
           <span className="hidden font-mono text-[11px] text-ink-dim lg:inline">{quota ? `${quota.remaining}/${quota.limit} left` : '5 / hour'}</span>
+          <motion.button
+            className="grid h-9 w-9 place-items-center rounded-[10px] border border-hairline-strong bg-panel text-ink-dim shadow-sm transition-colors hover:border-brand-line hover:text-brand"
+            onClick={toggle} aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'} title={theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            whileHover={{ y: -1 }} whileTap={{ scale: 0.94 }}
+          >
+            <AnimatePresence mode="wait" initial={false}>
+              {theme === 'dark' ? (
+                <motion.span key="sun" initial={{ rotate: -90, opacity: 0, scale: 0.6 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: 90, opacity: 0, scale: 0.6 }} transition={{ duration: 0.25 }} style={{ display: 'grid' }}>
+                  <Sun size={16} />
+                </motion.span>
+              ) : (
+                <motion.span key="moon" initial={{ rotate: 90, opacity: 0, scale: 0.6 }} animate={{ rotate: 0, opacity: 1, scale: 1 }} exit={{ rotate: -90, opacity: 0, scale: 0.6 }} transition={{ duration: 0.25 }} style={{ display: 'grid' }}>
+                  <Moon size={16} />
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </motion.button>
           <button className="hidden rounded-[10px] px-3 py-2 text-[13.5px] font-medium text-ink-dim transition-colors hover:text-ink sm:inline" onClick={() => navigate('reports')}>Reports</button>
           <motion.button
             className="inline-flex items-center gap-1.5 rounded-[11px] border border-hairline-strong bg-panel px-4 py-2 text-[13.5px] font-semibold text-ink shadow-sm transition-colors hover:border-brand-line hover:text-brand"
@@ -260,7 +314,7 @@ function Landing({ onStart, onReports }) {
                       <span className="font-mono text-[10px] font-medium text-ink-dim">${(c.value / 1000).toFixed(1)}k</span>
                       <motion.span
                         className="w-full rounded-t-[6px]"
-                        style={{ height: `${pct}%`, background: i === 0 ? 'linear-gradient(to top, var(--color-brand), var(--color-brand-hot))' : '#e7e9fb', transformOrigin: 'bottom' }}
+                        style={{ height: `${pct}%`, background: i === 0 ? 'linear-gradient(to top, var(--color-brand), var(--color-brand-hot))' : 'var(--color-brand-line)', transformOrigin: 'bottom' }}
                         initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ once: true }}
                         transition={{ delay: 0.3 + i * 0.08, duration: 0.6, ease: easeOut }}
                       />
@@ -284,7 +338,7 @@ function Landing({ onStart, onReports }) {
             {[
               ['Avg rating', '4.33'],
               ['Return rate', '20.0%'],
-              ['Rating ↔ revenue', 'r +0.68']
+              ['Rating correlation', '+0.68']
             ].map(([k, v], i) => (
               <div key={k} className={`px-5 py-4 text-center ${i < 2 ? 'border-r border-hairline' : ''}`}>
                 <strong className="block font-display text-[18px] font-extrabold tracking-[-0.02em] text-ink">{v}</strong>
@@ -377,99 +431,404 @@ function Landing({ onStart, onReports }) {
   )
 }
 
+const SAMPLE_SALES_CSV = `transaction_id,date,customer_id,region,product_category,units_sold,unit_price,discount_pct,total_revenue,shipping_cost,payment_method,customer_rating,returned
+TXN-1001,2024-01-05,CUST-201,North America,Electronics,3,299.99,0.05,854.97,14.50,Credit Card,4.8,No
+TXN-1002,2024-01-07,CUST-202,Europe,Home & Kitchen,1,120.00,0.00,120.00,8.20,PayPal,4.2,No
+TXN-1003,2024-01-08,CUST-203,Asia-Pacific,Fashion,5,45.00,0.15,191.25,5.00,Credit Card,3.9,Yes
+TXN-1004,2024-01-10,CUST-204,North America,Beauty,2,35.50,0.10,63.90,4.50,Debit Card,4.9,No
+TXN-1005,2024-01-12,CUST-205,Europe,Electronics,2,549.00,0.20,878.40,19.00,Credit Card,4.5,No
+TXN-1006,2024-01-15,CUST-206,Latin America,Home & Kitchen,4,85.00,0.05,323.00,12.00,PayPal,3.1,Yes
+TXN-1007,2024-01-18,CUST-207,North America,Sports,1,150.00,0.00,150.00,9.50,Credit Card,4.7,No
+TXN-1008,2024-01-20,CUST-208,Asia-Pacific,Electronics,6,199.99,0.25,899.96,22.00,Credit Card,4.6,No
+TXN-1009,2024-01-22,CUST-209,Europe,Sports,2,75.00,0.10,135.00,7.00,Credit Card,4.0,No
+TXN-1010,2024-01-25,CUST-210,North America,Fashion,8,25.00,0.30,140.00,6.50,Debit Card,3.5,Yes
+TXN-1011,2024-02-01,CUST-211,North America,Electronics,4,349.99,0.10,1259.96,15.00,Credit Card,4.9,No
+TXN-1012,2024-02-03,CUST-212,Asia-Pacific,Home & Kitchen,3,110.00,0.00,330.00,11.50,PayPal,4.1,No
+TXN-1013,2024-02-05,CUST-213,Europe,Fashion,2,95.00,0.10,171.00,6.00,Credit Card,4.4,No
+TXN-1014,2024-02-08,CUST-214,Latin America,Beauty,5,42.00,0.20,168.00,8.00,Debit Card,3.8,No
+TXN-1015,2024-02-12,CUST-215,North America,Electronics,1,1200.00,0.05,1140.00,25.00,Credit Card,5.0,No
+TXN-1016,2024-02-14,CUST-216,Europe,Sports,3,130.00,0.15,331.50,13.00,PayPal,4.3,No
+TXN-1017,2024-02-17,CUST-217,Asia-Pacific,Beauty,4,50.00,0.00,200.00,7.50,Credit Card,4.7,No
+TXN-1018,2024-02-20,CUST-218,North America,Home & Kitchen,2,220.00,0.25,330.00,14.00,Credit Card,3.6,Yes
+TXN-1019,2024-02-24,CUST-219,Europe,Electronics,3,450.00,0.10,1215.00,18.00,Credit Card,4.6,No
+TXN-1020,2024-02-28,CUST-220,Latin America,Fashion,6,38.00,0.00,228.00,9.00,PayPal,4.0,No
+TXN-1021,2024-03-02,CUST-221,North America,Sports,4,89.00,0.10,320.40,11.00,Credit Card,4.5,No
+TXN-1022,2024-03-05,CUST-222,Asia-Pacific,Electronics,2,699.00,0.15,1188.30,20.00,Credit Card,4.7,No
+TXN-1023,2024-03-08,CUST-223,Europe,Beauty,3,65.00,0.05,185.25,5.50,Debit Card,4.8,No
+TXN-1024,2024-03-12,CUST-224,North America,Home & Kitchen,5,95.00,0.20,380.00,16.00,PayPal,3.4,Yes
+TXN-1025,2024-03-15,CUST-225,Latin America,Sports,2,110.00,0.00,220.00,10.00,Credit Card,4.2,No
+TXN-1026,2024-03-18,CUST-226,Europe,Electronics,1,850.00,0.10,765.00,17.00,Credit Card,4.8,No
+TXN-1027,2024-03-20,CUST-227,Asia-Pacific,Fashion,7,55.00,0.25,288.75,8.50,Credit Card,3.7,Yes
+TXN-1028,2024-03-22,CUST-228,North America,Beauty,4,70.00,0.10,252.00,6.00,Debit Card,4.9,No
+TXN-1029,2024-03-25,CUST-229,Europe,Home & Kitchen,2,180.00,0.15,306.00,12.50,PayPal,4.3,No
+TXN-1030,2024-03-29,CUST-230,North America,Electronics,5,400.00,0.20,1600.00,24.00,Credit Card,4.9,No`
+
+const PIPELINE_STAGES = [
+  { id: 'profile', title: 'Dataset Profiling', detail: 'Schema validation, null checks & Polars type mapping' },
+  { id: 'plan', title: 'Analytical Planning', detail: 'Statistical hypothesis formulation & method selection' },
+  { id: 'code', title: 'Code Generation', detail: 'Vectorized Polars & SciPy numerical computation script' },
+  { id: 'execute', title: 'Sandboxed Execution', detail: 'Isolated subprocess execution, plot generation & AST validation' },
+  { id: 'synthesize', title: 'Evidence Synthesis', detail: 'Machine-verified metrics grounding & executive brief' }
+]
+
+const QUICK_PROMPTS = [
+  { label: 'Category revenue & return risk', text: 'Analyze revenue by product category and identify return risks' },
+  { label: 'Rating vs revenue correlation', text: 'Compute Pearson correlation between customer ratings and total order revenue' },
+  { label: 'Discount impact on returns', text: 'Evaluate whether higher discount percentages correlate with higher return rates' }
+]
+
 function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, onReports }) {
-  const chooseFile = event => setFile(event.target.files?.[0] || null)
+  const [fileMeta, setFileMeta] = useState(null)
+  const [isDragging, setIsDragging] = useState(false)
+
+  useEffect(() => {
+    if (!file) {
+      setFileMeta(null)
+      return
+    }
+    const isText = file.name.endsWith('.csv') || file.name.endsWith('.tsv') || file.name.endsWith('.txt') || file.type.includes('csv') || file.type.includes('text')
+    if (isText) {
+      const reader = new FileReader()
+      reader.onload = (e) => {
+        const text = e.target.result || ''
+        const lines = text.split(/\r?\n/).filter(line => line.trim().length > 0)
+        if (lines.length > 0) {
+          const delimiter = file.name.endsWith('.tsv') ? '\t' : ','
+          const headers = lines[0].split(delimiter).map(h => h.trim().replace(/^["']|["']$/g, ''))
+          setFileMeta({
+            headers,
+            rowCount: lines.length - 1,
+            format: file.name.endsWith('.tsv') ? 'TSV' : 'CSV'
+          })
+        }
+      }
+      reader.readAsText(file.slice(0, 65536))
+    } else {
+      const ext = file.name.split('.').pop()?.toUpperCase() || 'DATA'
+      setFileMeta({ headers: [], rowCount: null, format: ext })
+    }
+  }, [file])
+
+  function handleChooseFile(e) {
+    const f = e.target.files?.[0]
+    if (f) setFile(f)
+  }
+
+  function handleLoadSample() {
+    const blob = new Blob([SAMPLE_SALES_CSV], { type: 'text/csv' })
+    const sampleFile = new File([blob], 'sample_sales_data.csv', { type: 'text/csv' })
+    setFile(sampleFile)
+    setQuery('Analyze revenue by product category and identify return risks')
+  }
+
+  function handleKeyDown(e) {
+    if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !running) {
+      e.preventDefault()
+      onRun()
+    }
+  }
+
   return (
-    <MMain className="workspace" variants={pageMotion} initial="initial" animate="animate" exit="exit">
-      <motion.div className="workspace-intro" variants={rise}>
+    <MMain className="studio-workspace" variants={pageMotion} initial="initial" animate="animate" exit="exit">
+      {/* Studio Header */}
+      <motion.div className="studio-header" variants={rise}>
         <div>
-          <p className="eyebrow"><span /> NEW ANALYSIS</p>
-          <h1>What decision are you making?</h1>
-          <p>Bring the data. DataSnap will structure the analysis and return the evidence.</p>
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-dim">Workspace</span>
+            <span className="text-ink-dim">/</span>
+            <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">Analysis Studio</span>
+          </div>
+          <h1 className="mt-2 font-display text-[clamp(26px,3.2vw,36px)] font-medium tracking-[-0.03em] text-ink">
+            Formulate hypothesis & dataset
+          </h1>
+          <p className="mt-1 text-[14.5px] text-ink-soft">
+            Upload raw rows, state your analytical objective, and execute inside an isolated Polars & SciPy runtime.
+          </p>
         </div>
-        <button className="text-button" onClick={onReports}>Open saved reports <ChevronRight size={15} /></button>
+        <button className="studio-reports-btn" onClick={onReports}>
+          <FileText size={15} /> Saved Reports <ChevronRight size={14} />
+        </button>
       </motion.div>
 
-      <div className="analyze-grid">
-        <MSection className="input-panel" variants={rise}>
-          <div className="panel-step"><span>01</span><div><strong>Dataset</strong><small>CSV, XLSX, Parquet, TSV, JSON or JSONL</small></div></div>
-          <div className={`upload-box ${file ? 'selected' : ''}`} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); setFile(event.dataTransfer.files[0]) }}>
+      {/* 2-column Studio Grid */}
+      <div className="studio-grid">
+        {/* Left Column: Staging + Query Input */}
+        <div className="studio-main-col">
+          {/* Section 1: Dataset Staging */}
+          <MSection className="studio-card" variants={rise}>
+            <div className="studio-card-head">
+              <div className="flex items-center gap-2.5">
+                <span className="studio-card-icon"><Database size={16} /></span>
+                <div>
+                  <strong className="block text-[14.5px] font-semibold text-ink">Dataset Staging</strong>
+                  <span className="text-[12px] text-ink-dim">Ephemeral local file input for isolated execution</span>
+                </div>
+              </div>
+              <div className="hidden font-mono text-[10.5px] tracking-wider text-ink-dim sm:flex sm:items-center sm:gap-1.5">
+                <span className="rounded bg-panel-2 px-1.5 py-0.5 border border-hairline">CSV</span>
+                <span className="rounded bg-panel-2 px-1.5 py-0.5 border border-hairline">PARQUET</span>
+                <span className="rounded bg-panel-2 px-1.5 py-0.5 border border-hairline">XLSX</span>
+                <span className="rounded bg-panel-2 px-1.5 py-0.5 border border-hairline">JSON</span>
+              </div>
+            </div>
+
+            {/* File Staging State */}
             {file ? (
-              <motion.div className={`file-selected ${running ? 'scanning' : ''}`} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
-                <div className="file-type"><FileText size={21} /></div>
-                <div><strong>{file.name}</strong><span>{running ? 'Analyzing…' : `${(file.size / 1024).toFixed(1)} KB · Ready to analyze`}</span></div>
-                <label className="change-file">Change<input type="file" accept=".csv,.xlsx,.parquet,.tsv,.json,.jsonl" onChange={chooseFile} /></label>
-                <button className="remove-file" onClick={() => setFile(null)} aria-label="Remove selected file"><X size={16} /></button>
+              <motion.div className="staged-file-card" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="staged-file-badge">
+                      <Table2 size={20} className="text-brand" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <strong className="text-[14px] font-semibold text-ink">{file.name}</strong>
+                        <span className="rounded bg-brand-soft px-1.5 py-0.5 font-mono text-[10px] font-medium text-brand">
+                          {fileMeta?.format || 'DATA'}
+                        </span>
+                      </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-x-3 text-[12px] text-ink-dim">
+                        <span>{(file.size / 1024).toFixed(1)} KB</span>
+                        {fileMeta?.rowCount != null && <span>· {fileMeta.rowCount} records</span>}
+                        {fileMeta?.headers?.length > 0 && <span>· {fileMeta.headers.length} columns detected</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label className="staged-action-btn">
+                      Replace
+                      <input type="file" accept=".csv,.xlsx,.parquet,.tsv,.json,.jsonl" onChange={handleChooseFile} />
+                    </label>
+                    <button className="staged-remove-btn" onClick={() => setFile(null)} aria-label="Remove dataset">
+                      <X size={15} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Detected Schema Tags */}
+                {fileMeta?.headers && fileMeta.headers.length > 0 && (
+                  <div className="mt-3.5 border-t border-hairline pt-3">
+                    <span className="block font-mono text-[10.5px] uppercase tracking-wider text-ink-dim">Detected Columns:</span>
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {fileMeta.headers.slice(0, 10).map((h) => (
+                        <span key={h} className="rounded border border-hairline bg-panel-2 px-2 py-0.5 font-mono text-[11px] text-ink-soft">
+                          {h}
+                        </span>
+                      ))}
+                      {fileMeta.headers.length > 10 && (
+                        <span className="rounded border border-hairline bg-panel-2 px-2 py-0.5 font-mono text-[11px] text-ink-dim">
+                          +{fileMeta.headers.length - 10} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
               </motion.div>
             ) : (
-              <>
-                <div className="upload-symbol"><UploadCloud size={23} /></div>
-                <strong>Drop your dataset here</strong>
-                <span>or browse from your computer</span>
-                <input type="file" accept=".csv,.xlsx,.parquet,.tsv,.json,.jsonl" onChange={chooseFile} />
-              </>
+              <div
+                className={`studio-dropzone ${isDragging ? 'dragging' : ''}`}
+                onDragOver={(e) => { e.preventDefault(); setIsDragging(true) }}
+                onDragLeave={() => setIsDragging(false)}
+                onDrop={(e) => { e.preventDefault(); setIsDragging(false); const f = e.dataTransfer.files?.[0]; if (f) setFile(f) }}
+              >
+                <div className="flex flex-col items-center text-center">
+                  <div className="studio-dropzone-icon">
+                    <Table2 size={24} />
+                  </div>
+                  <strong className="mt-3 block text-[14.5px] font-semibold text-ink">
+                    Drag and drop your dataset file
+                  </strong>
+                  <p className="mt-1 text-[12.5px] text-ink-dim">
+                    Supports CSV, TSV, Parquet, XLSX, JSON or JSONL up to 100MB
+                  </p>
+                  <div className="mt-4 flex flex-wrap items-center justify-center gap-2.5">
+                    <label className="studio-upload-btn">
+                      Choose local file
+                      <input type="file" accept=".csv,.xlsx,.parquet,.tsv,.json,.jsonl" onChange={handleChooseFile} />
+                    </label>
+                    <button type="button" className="studio-sample-btn" onClick={handleLoadSample}>
+                      Load sample dataset (Retail 30 rows)
+                    </button>
+                  </div>
+                </div>
+              </div>
             )}
-          </div>
-          <div className="panel-step question-step"><span>02</span><div><strong>Business question</strong><small>Be specific about the decision you need to make</small></div></div>
-          <textarea className="question-box" value={query} onChange={event => setQuery(event.target.value)} maxLength={500} />
-          <div className="input-footer">
-            <span className="fallback-note"><Zap size={15} /> Gemini primary + automatic fallback</span>
-            <motion.button className="primary-cta small" onClick={onRun} disabled={running} whileHover={!running ? { scale: 1.03, y: -2 } : {}} whileTap={!running ? { scale: 0.97 } : {}}>
-              {running ? <><LoaderCircle className="spin" size={16} /> Analyzing</> : <><Play size={16} fill="currentColor" /> Run analysis</>}
-            </motion.button>
-          </div>
-          <AnimatePresence>
-            {error && (
-              <motion.div className="error-line" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
-                <X size={15} />
-                <div><strong>Analysis could not be completed</strong><span>{error}</span><button onClick={onRun}>Try again</button></div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </MSection>
+          </MSection>
 
-        <motion.aside className="process-panel" variants={rise}>
-          <p className="eyebrow"><Sparkles size={13} /> YOUR ANALYSIS</p>
-          <h2>
-            {running ? 'Building your brief' : 'A clear path to clarity'}
-            {running && <span className="working-dots" aria-hidden><i /><i /><i /></span>}
-          </h2>
-          <div className="process-progress" role="progressbar" aria-valuemin={0} aria-valuemax={STEPS.length} aria-valuenow={running ? step + 1 : 0}>
-            <div className={`process-progress-fill ${running ? 'live' : ''}`} style={{ width: `${running ? ((step + 1) / STEPS.length) * 100 : 0}%` }} />
-          </div>
-          <div className="process-list">
-            {STEPS.map((item, index) => {
-              const done = step > index
-              const current = running && step === index
-              return (
-                <motion.div className={`process-row ${done ? 'done' : ''} ${current ? 'current' : ''}`} key={item} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + index * 0.06 }}>
-                  <span>
-                    <AnimatePresence mode="wait" initial={false}>
-                      {done ? (
-                        <motion.span key="done" initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }} style={{ display: 'grid', placeItems: 'center' }}>
-                          <Check size={12} />
-                        </motion.span>
-                      ) : current ? (
-                        <motion.span key="run" style={{ display: 'grid', placeItems: 'center' }}>
-                          <LoaderCircle className="spin" size={13} />
-                        </motion.span>
-                      ) : (
-                        <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>{`0${index + 1}`}</motion.span>
-                      )}
-                    </AnimatePresence>
-                  </span>
-                  <strong>{item}</strong>
-                  {current && (
-                    <motion.span className="step-status" initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }}>
-                      working
-                    </motion.span>
-                  )}
+          {/* Section 2: Analytical Objective */}
+          <MSection className="studio-card" variants={rise}>
+            <div className="studio-card-head">
+              <div className="flex items-center gap-2.5">
+                <span className="studio-card-icon"><Terminal size={16} /></span>
+                <div>
+                  <strong className="block text-[14.5px] font-semibold text-ink">Analytical Objective</strong>
+                  <span className="text-[12px] text-ink-dim">State the decision question or hypothesis to test</span>
+                </div>
+              </div>
+              <span className="font-mono text-[11px] text-ink-dim">{query.length} / 500</span>
+            </div>
+
+            {/* Quick prompt suggestions */}
+            <div className="prompt-suggestions">
+              <span className="text-[11.5px] font-medium text-ink-dim">Suggested hypotheses:</span>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {QUICK_PROMPTS.map((p) => (
+                  <button
+                    key={p.label}
+                    type="button"
+                    className="prompt-chip"
+                    onClick={() => setQuery(p.text)}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Query Textarea */}
+            <div className="relative mt-3">
+              <textarea
+                className="studio-query-textarea"
+                rows={4}
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={handleKeyDown}
+                placeholder="e.g. Analyze revenue by product category, compare return rates, and test if customer rating correlates with sales volume."
+                maxLength={500}
+                disabled={running}
+              />
+            </div>
+
+            {/* Execution Control Bar */}
+            <div className="studio-control-bar">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-ink-dim">
+                <span className="flex items-center gap-1.5 font-mono text-[11px]">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Python 3.11 · Polars
+                </span>
+                <span className="hidden font-mono text-[11px] sm:inline">SciPy Stats</span>
+                <span className="hidden font-mono text-[11px] sm:inline">Gemini 2.5 Flash</span>
+              </div>
+
+              <motion.button
+                className="studio-run-btn"
+                onClick={onRun}
+                disabled={running}
+                whileHover={!running ? { y: -1 } : {}}
+                whileTap={!running ? { scale: 0.98 } : {}}
+              >
+                {running ? (
+                  <>
+                    <LoaderCircle className="spin" size={15} />
+                    <span>Executing pipeline…</span>
+                  </>
+                ) : (
+                  <>
+                    <Play size={14} fill="currentColor" />
+                    <span>Run Analysis</span>
+                    <kbd className="hidden sm:inline-block">⌘↵</kbd>
+                  </>
+                )}
+              </motion.button>
+            </div>
+
+            {/* Error Line */}
+            <AnimatePresence>
+              {error && (
+                <motion.div className="studio-error-banner" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+                  <X size={15} className="mt-0.5 flex-none text-danger" />
+                  <div className="flex-1">
+                    <strong className="block text-[13px] font-semibold text-danger">Analysis Execution Failed</strong>
+                    <p className="mt-0.5 text-[12.5px] text-ink-soft">{error}</p>
+                    <button className="mt-2 font-mono text-[11.5px] font-medium text-brand hover:underline" onClick={onRun}>
+                      Retry execution →
+                    </button>
+                  </div>
                 </motion.div>
-              )
-            })}
-          </div>
-          <div className="process-note"><ShieldCheck size={17} /><p>Your dataset is executed in an isolated runtime. Reports are saved only when you choose to save them.</p></div>
-        </motion.aside>
+              )}
+            </AnimatePresence>
+          </MSection>
+        </div>
+
+        {/* Right Column: Telemetry & Safety Inspector */}
+        <div className="studio-side-col">
+          {/* Pipeline Telemetry Card */}
+          <motion.aside className="studio-card" variants={rise}>
+            <div className="studio-card-head">
+              <div>
+                <strong className="block text-[14.5px] font-semibold text-ink">Execution Pipeline</strong>
+                <span className="text-[12px] text-ink-dim">Real-time analytical workflow stages</span>
+              </div>
+              <span className={`studio-status-pill ${running ? 'live' : 'idle'}`}>
+                {running ? `STAGE ${step + 1} OF 5` : 'IDLE'}
+              </span>
+            </div>
+
+            {/* Stage Progress List */}
+            <div className="studio-pipeline-list">
+              {PIPELINE_STAGES.map((s, index) => {
+                const isDone = step > index
+                const isCurrent = running && step === index
+                return (
+                  <div key={s.id} className={`studio-stage-row ${isDone ? 'done' : ''} ${isCurrent ? 'current' : ''}`}>
+                    <span className="studio-stage-badge">
+                      {isDone ? (
+                        <Check size={12} className="text-ok" />
+                      ) : isCurrent ? (
+                        <LoaderCircle size={12} className="spin text-brand" />
+                      ) : (
+                        <span className="font-mono text-[10px] text-ink-dim">0{index + 1}</span>
+                      )}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <strong className="text-[13px] font-medium text-ink">{s.title}</strong>
+                        {isCurrent && <span className="font-mono text-[9px] uppercase tracking-wider text-brand">Running</span>}
+                        {isDone && <span className="font-mono text-[9px] uppercase tracking-wider text-ok">Passed</span>}
+                      </div>
+                      <p className="truncate text-[11px] text-ink-dim">{s.detail}</p>
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          </motion.aside>
+
+          {/* Verification & Safety Guarantees */}
+          <motion.aside className="studio-card" variants={rise}>
+            <div className="studio-card-head">
+              <div>
+                <strong className="block text-[14.5px] font-semibold text-ink">Execution Guarantees</strong>
+                <span className="text-[12px] text-ink-dim">Architecture standards enforced on every run</span>
+              </div>
+            </div>
+
+            <div className="studio-guarantees">
+              <div className="flex gap-3">
+                <ShieldCheck size={16} className="mt-0.5 flex-none text-brand" />
+                <div>
+                  <strong className="block text-[12.5px] font-medium text-ink">Machine-Verified Numbers</strong>
+                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-dim">Every statistic is computed in Python and verified against source arrays — never generated by LLM imagination.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Lock size={16} className="mt-0.5 flex-none text-brand" />
+                <div>
+                  <strong className="block text-[12.5px] font-medium text-ink">Isolated Ephemeral Process</strong>
+                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-dim">Scripts execute in a scoped sandbox subprocess. Uploaded data is not retained for training.</p>
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Workflow size={16} className="mt-0.5 flex-none text-brand" />
+                <div>
+                  <strong className="block text-[12.5px] font-medium text-ink">Automated Recovery Loops</strong>
+                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-dim">Code syntax errors or runtime exceptions trigger automatic repair nodes before returning results.</p>
+                </div>
+              </div>
+            </div>
+          </motion.aside>
+        </div>
       </div>
     </MMain>
   )
