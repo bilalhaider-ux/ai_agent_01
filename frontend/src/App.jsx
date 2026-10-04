@@ -108,13 +108,39 @@ export default function App() {
     setRunning(true); setError(''); setStep(0)
     const payload = new FormData(); payload.append('query', query.trim()); payload.append('dataset', file); payload.append('provider', 'gemini')
     const timer = setInterval(() => setStep(current => Math.min(current + 1, STEPS.length - 1)), 1500)
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 15_000)
     try {
-      const response = await fetch(`${API_URL}/api/v1/analyze`, { method: 'POST', body: payload, credentials: 'include' })
-      const body = await response.json()
+      const response = await fetch(`${API_URL}/api/v1/analyze`, { method: 'POST', body: payload, credentials: 'include', signal: controller.signal })
+      clearTimeout(timeout)
+      const contentType = response.headers.get('content-type') || ''
+      const body = contentType.includes('application/json') ? await response.json() : null
       setQuota({ remaining: response.headers.get('X-RateLimit-Remaining'), limit: response.headers.get('X-RateLimit-Limit') || '5' })
-      if (!response.ok) throw new Error(body.detail || body.error?.message || 'Analysis could not be completed.')
-      setReport(body); navigate('report', body.analysis_id)
-    } catch (requestError) { setError(requestError.message) } finally { clearInterval(timer); setRunning(false) }
+      if (!response.ok) {
+        const detail = body?.detail || body?.error?.message
+        throw new Error(detail || `Analysis API returned HTTP ${response.status}. Check the backend logs for the upstream provider response.`)
+      }
+      const jobId = body.analysis_id
+      let job = body
+      const pollingDeadline = Date.now() + 10 * 60 * 1000
+      while (job.status === 'queued' || job.status === 'running') {
+        if (Date.now() >= pollingDeadline) throw new Error('The analysis is taking longer than expected. Check the Reports page later or review the backend logs.')
+        await new Promise(resolve => setTimeout(resolve, 2000))
+        const statusResponse = await fetch(`${API_URL}/api/v1/analyses/${jobId}`, { credentials: 'include' })
+        const statusType = statusResponse.headers.get('content-type') || ''
+        const statusBody = statusType.includes('application/json') ? await statusResponse.json() : null
+        if (!statusResponse.ok) throw new Error(statusBody?.detail || `Analysis status returned HTTP ${statusResponse.status}.`)
+        job = statusBody
+        if (job.status === 'running') setStep(current => Math.min(current + 1, STEPS.length - 1))
+      }
+      if (job.status === 'failed') throw new Error(job.error?.message || 'The analysis worker failed. Check the backend logs.')
+      setReport(job); navigate('report', job.analysis_id)
+    } catch (requestError) {
+      const message = requestError.name === 'AbortError'
+        ? 'The analysis API did not respond within 15 seconds. Please check the backend deployment and try again.'
+        : requestError.message || 'The analysis request could not reach the API.'
+      setError(message)
+    } finally { clearTimeout(timeout); clearInterval(timer); setRunning(false) }
   }
 
   async function deleteReport(id) { await removeReport(id); const next = await listReports(); setReports(next); if (report?.analysis_id === id) { setReport(null); navigate('reports') } }
