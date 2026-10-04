@@ -75,7 +75,7 @@ class AnalysisJobStore:
         self.update(analysis_id, status="running")
         try:
             result = task()
-            result["analysis_id"] = analysis_id
+            result = {key: value for key, value in result.items() if key != "analysis_id"}
             self.update(analysis_id, **result)
         except Exception as exc:
             self.update(analysis_id, status="failed", error={"type": type(exc).__name__, "message": str(exc)})
