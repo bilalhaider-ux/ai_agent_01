@@ -1,13 +1,12 @@
 import os
-import shutil
 from typing import Any
 
-from fastapi import APIRouter, File, Form, HTTPException, Request, Response, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, File, Form, HTTPException, Request, Response, UploadFile, status
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from app.services.analysis_service import run_analysis
 from app.services.file_service import save_upload
+from app.services.job_service import job_store
 from app.services.rate_limit_service import rate_limiter
 
 router = APIRouter(prefix="/api/v1")
@@ -29,15 +28,29 @@ class AnalysisResponse(BaseModel):
     error: dict[str, str] | None = None
 
 
-@router.post("/analyze", response_model=AnalysisResponse, status_code=status.HTTP_201_CREATED)
+class AnalysisJobResponse(BaseModel):
+    analysis_id: str
+    status: str
+    created_at: str
+    updated_at: str
+
+
+def process_analysis(analysis_id: str, dataset_path: Any, query: str, provider: str | None, model: str | None) -> None:
+    from app.services.analysis_service import run_analysis
+
+    job_store.run(analysis_id, lambda: run_analysis(dataset_path, query, provider, model, analysis_id))
+
+
+@router.post("/analyze", response_model=AnalysisJobResponse, status_code=status.HTTP_202_ACCEPTED)
 async def analyze(
     request: Request,
     response: Response,
+    background_tasks: BackgroundTasks,
     query: str = Form(...),
     dataset: UploadFile = File(...),
     provider: str | None = Form(None),
     model: str | None = Form(None),
-) -> AnalysisResponse:
+) -> AnalysisJobResponse:
     if not query.strip():
         raise HTTPException(status_code=400, detail="Query must not be empty.")
 
@@ -61,6 +74,7 @@ async def analyze(
             secure=os.getenv("COOKIE_SECURE", "false").lower() == "true",
         )
     if not quota.allowed:
+        import shutil
         shutil.rmtree(dataset_path.parent, ignore_errors=True)
         return JSONResponse(
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
@@ -76,16 +90,14 @@ async def analyze(
                 "X-RateLimit-Reset": str(quota.reset_at),
             },
         )
-    result = run_analysis(dataset_path, query.strip(), provider, model)
-    if result["status"] == "failed":
-        response_status = status.HTTP_429_TOO_MANY_REQUESTS if result.get("error", {}).get("type") == "ProviderRateLimitError" else status.HTTP_502_BAD_GATEWAY
-        return JSONResponse(
-            status_code=response_status,
-            content=result,
-            headers={
-                "X-RateLimit-Limit": str(quota.limit),
-                "X-RateLimit-Remaining": str(quota.remaining),
-                "X-RateLimit-Reset": str(quota.reset_at),
-            },
-        )
-    return AnalysisResponse(**result)
+    job = job_store.create()
+    background_tasks.add_task(process_analysis, job["analysis_id"], dataset_path, query.strip(), provider, model)
+    return AnalysisJobResponse(**job)
+
+
+@router.get("/analyses/{analysis_id}")
+def analysis_status(analysis_id: str) -> dict[str, Any]:
+    job = job_store.get(analysis_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Analysis job was not found.")
+    return job

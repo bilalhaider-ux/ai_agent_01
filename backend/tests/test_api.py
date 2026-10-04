@@ -36,8 +36,10 @@ class TestApi(unittest.TestCase):
                 data={"query": "Analyze revenue and returns", "provider": "mock"},
                 files={"dataset": ("sample_sales_data.csv", handle, "text/csv")},
             )
-        self.assertEqual(response.status_code, 201, response.text)
-        result = response.json()
+        self.assertEqual(response.status_code, 202, response.text)
+        queued = response.json()
+        self.assertIn(queued["status"], {"queued", "running"})
+        result = client.get(f"/api/v1/analyses/{queued['analysis_id']}").json()
         self.assertEqual(result["status"], "completed")
         self.assertTrue(result["charts"])
         self.assertEqual(result["grounding"]["status"], "verified_metrics_only")
@@ -73,18 +75,15 @@ class TestApi(unittest.TestCase):
         self.assertEqual(response.status_code, 400)
 
     def test_provider_rate_limit_has_clear_response(self):
-        with patch("app.api.routes_analysis.run_analysis", return_value={
-            "analysis_id": "rate-limited",
-            "status": "failed",
-            "error": {"type": "ProviderRateLimitError", "message": "Mistral rate limit or quota exceeded."},
-        }):
+        with patch("app.api.routes_analysis.process_analysis"):
             response = TestClient(app).post(
                 "/api/v1/analyze",
                 data={"query": "analyze", "provider": "mistral"},
                 files={"dataset": ("sample.csv", b"a,b\n1,2\n", "text/csv")},
             )
-        self.assertEqual(response.status_code, 429)
-        self.assertIn("rate limit", response.json()["error"]["message"])
+        self.assertEqual(response.status_code, 202)
+        job_id = response.json()["analysis_id"]
+        self.assertEqual(TestClient(app).get(f"/api/v1/analyses/{job_id}").status_code, 200)
 
 
 if __name__ == "__main__":

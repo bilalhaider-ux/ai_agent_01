@@ -1,13 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import HTMLResponse, PlainTextResponse
 
-from app.services.analysis_service import get_analysis
+from app.services.job_service import job_store
 
 router = APIRouter(prefix="/api/v1/reports")
 
 
 def report_or_404(analysis_id: str) -> dict:
-    record = get_analysis(analysis_id)
+    record = job_store.get(analysis_id)
     if not record:
         raise HTTPException(status_code=404, detail="Analysis report was not found.")
     return record
