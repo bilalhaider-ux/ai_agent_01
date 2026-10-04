@@ -123,14 +123,23 @@ export default function App() {
   return (
     <div className="site-shell">
       <motion.header className="site-nav" initial={{ y: -72, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.5, ease: easeOut }}>
-        <motion.button className="brand-button" onClick={() => navigate('landing')} whileHover={{ scale: 1.04 }} whileTap={{ scale: 0.97 }}><Logo /></motion.button>
-        <nav>
-          <button className={page === 'analyze' ? 'active' : ''} onClick={() => navigate('analyze')}>Analyze</button>
-          <button className={page === 'reports' || page === 'report' ? 'active' : ''} onClick={() => navigate('reports')}>Reports <span>{reports.length}</span></button>
+        <motion.button className="brand-button" onClick={() => navigate('landing')} whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}><Logo /></motion.button>
+
+        <nav className="absolute left-1/2 hidden -translate-x-1/2 items-center gap-1 md:flex">
+          <button className={`rounded-[9px] px-3.5 py-2 text-[13.5px] font-medium transition-colors ${page === 'landing' ? 'text-brand' : 'text-ink-dim hover:text-ink'}`} onClick={() => navigate('landing')}>Overview</button>
+          <button className={`rounded-[9px] px-3.5 py-2 text-[13.5px] font-medium transition-colors ${page === 'analyze' ? 'text-brand' : 'text-ink-dim hover:text-ink'}`} onClick={() => navigate('analyze')}>Analyze</button>
+          <button className={`flex items-center gap-1.5 rounded-[9px] px-3.5 py-2 text-[13.5px] font-medium transition-colors ${page === 'reports' || page === 'report' ? 'text-brand' : 'text-ink-dim hover:text-ink'}`} onClick={() => navigate('reports')}>Reports <span className="rounded-full bg-brand-soft px-1.5 py-0.5 font-mono text-[10px] text-brand">{reports.length}</span></button>
         </nav>
-        <div className="nav-actions">
-          <span className="privacy"><ShieldCheck size={14} /> Private by default</span>
-          <span className="quota">{quota ? `${quota.remaining}/${quota.limit} analyses left` : '5 analyses / hour'}</span>
+
+        <div className="ml-auto flex items-center gap-2 sm:gap-3">
+          <span className="hidden font-mono text-[11px] text-ink-dim lg:inline">{quota ? `${quota.remaining}/${quota.limit} left` : '5 / hour'}</span>
+          <button className="hidden rounded-[10px] px-3 py-2 text-[13.5px] font-medium text-ink-dim transition-colors hover:text-ink sm:inline" onClick={() => navigate('reports')}>Reports</button>
+          <motion.button
+            className="inline-flex items-center gap-1.5 rounded-[11px] border border-hairline-strong bg-panel px-4 py-2 text-[13.5px] font-semibold text-ink shadow-sm transition-colors hover:border-brand-line hover:text-brand"
+            onClick={() => navigate('analyze')} whileHover={{ y: -1 }} whileTap={{ scale: 0.98 }}
+          >
+            Start free
+          </motion.button>
         </div>
       </motion.header>
 
@@ -148,29 +157,35 @@ function Landing({ onStart, onReports }) {
   return (
     <MMain className="landing" variants={pageMotion} initial="initial" animate="animate" exit="exit">
       {/* ============================ HERO (full section) ============================ */}
-      <section className="relative flex flex-col items-center px-5 pt-20 pb-16 text-center sm:pt-24 sm:pb-20 lg:pt-28">
+      <section className="relative flex min-h-[calc(100svh-60px)] flex-col items-center justify-center px-5 py-10 text-center">
         {/* animated ambient glow */}
         <div aria-hidden className="pointer-events-none absolute left-1/2 top-[-60px] -z-10 h-[460px] w-[760px] max-w-[120vw] -translate-x-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(124,58,237,0.22),transparent_70%)] blur-2xl motion-safe:animate-[var(--animate-blob)]" />
 
-        <motion.div className="mb-7 inline-flex items-center gap-2.5 rounded-full border border-hairline-strong bg-panel py-1.5 pl-1.5 pr-3.5 text-xs text-ink-soft shadow-sm" variants={rise}>
-          <b className="rounded-full bg-[linear-gradient(100deg,var(--color-brand),var(--color-brand-hot))] px-2.5 py-0.5 font-mono text-[10px] font-semibold text-white">NEW</b>
-          Decision intelligence for your data
-        </motion.div>
+        <motion.button
+          className="group mb-6 inline-flex max-w-full items-center gap-2 whitespace-nowrap rounded-full border border-hairline-strong bg-panel py-1 pl-1.5 pr-3 text-[11.5px] font-medium text-ink-soft shadow-sm transition-colors hover:border-brand-line sm:text-[12px]"
+          onClick={onStart} variants={rise}
+        >
+          <b className="rounded-full bg-brand-soft px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-brand">New</b>
+          Agent workflows are now available
+          <ArrowUpRight size={14} className="text-ink-dim transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </motion.button>
 
-        <motion.h1 className="m-0 max-w-[18ch] font-display text-[clamp(38px,6.6vw,80px)] font-extrabold leading-[1.0] tracking-[-0.045em] text-ink" variants={rise}>
-          See what your data <em className="bg-[linear-gradient(100deg,var(--color-brand),var(--color-brand-hot))] bg-clip-text not-italic text-transparent">hides</em> before you train.
+        <motion.h1 className="m-0 font-display text-[clamp(32px,5vw,58px)] font-medium leading-[1.0] tracking-[-0.04em] text-ink" variants={rise}>
+          See what your data <em className="bg-[linear-gradient(100deg,var(--color-brand),var(--color-brand-hot))] bg-clip-text not-italic text-transparent">hides</em>,
+          <br className="hidden sm:block" /> before you train.
         </motion.h1>
 
-        <motion.p className="mt-6 max-w-[54ch] text-[clamp(15px,1.6vw,18px)] leading-relaxed text-ink-soft" variants={rise}>
-          Upload a dataset, ask the question that matters, and get a decision-ready brief — profiled, pressure-tested and verified before a single model sees it.
+        <motion.p className="mt-4 max-w-[42ch] text-[clamp(14px,1.3vw,16px)] leading-relaxed text-ink-soft" variants={rise}>
+          An all-in-one agent that profiles, analyzes and verifies
+          <br className="hidden sm:block" /> your data into a decision-ready brief.
         </motion.p>
 
-        <motion.div className="mt-9 flex w-full flex-col items-stretch justify-center gap-3.5 sm:w-auto sm:flex-row sm:items-center sm:gap-4" variants={rise}>
-          <motion.button className="primary-cta justify-center" onClick={onStart} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>Start an analysis <ArrowUpRight size={17} /></motion.button>
-          <motion.button className="ghost-cta justify-center" onClick={onReports} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>View reports <ChevronRight size={15} /></motion.button>
+        <motion.div className="mt-6 flex flex-col items-center justify-center gap-3 sm:flex-row sm:gap-3" variants={rise}>
+          <motion.button className="primary-cta w-full justify-center !px-5 !py-2.5 !text-[13px] sm:w-auto" onClick={onStart} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>Start an analysis <ArrowUpRight size={15} /></motion.button>
+          <motion.button className="ghost-cta w-full justify-center !px-4 !py-2.5 !text-[13px] sm:w-auto" onClick={onReports} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>Learn more <ChevronRight size={14} /></motion.button>
         </motion.div>
 
-        <motion.div className="mt-10 flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-xs text-ink-dim" variants={rise}>
+        <motion.div className="mt-7 flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-xs text-ink-dim" variants={rise}>
           <span className="flex items-center gap-2"><ShieldCheck size={15} className="text-brand" /> Isolated execution</span>
           <span className="flex items-center gap-2"><Check size={15} className="text-brand" /> Machine-verified metrics</span>
           <span className="flex items-center gap-2"><Lock size={15} className="text-brand" /> No account required</span>
@@ -178,13 +193,13 @@ function Landing({ onStart, onReports }) {
       </section>
 
       {/* ====================== LIVE PREVIEW (separate full section) ====================== */}
-      <section className="relative px-5 pt-6 pb-24 sm:pb-28">
+      <section className="relative px-5 pt-14 pb-16 sm:pt-16 sm:pb-18">
         <motion.div
-          className="mx-auto mb-10 max-w-[640px] text-center"
+          className="mx-auto mb-7 max-w-[640px] text-center"
           initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.4 }} transition={{ duration: 0.5, ease: easeOut }}
         >
           <p className="eyebrow justify-center"><span /> LIVE PREVIEW</p>
-          <h2 className="mt-4 font-display text-[clamp(26px,3.2vw,40px)] font-extrabold leading-[1.08] tracking-[-0.035em] text-ink">A decision brief, rendered from your rows.</h2>
+          <h2 className="mt-4 font-display text-[clamp(26px,3.2vw,40px)] font-medium leading-[1.08] tracking-[-0.035em] text-ink">A decision brief, rendered from your rows.</h2>
           <p className="mx-auto mt-3 max-w-[480px] text-[15.5px] leading-relaxed text-ink-soft">One clear view — the signal your data was hiding, computed and verified.</p>
         </motion.div>
 
@@ -354,9 +369,9 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
           <div className="panel-step"><span>01</span><div><strong>Dataset</strong><small>CSV, XLSX, Parquet, TSV, JSON or JSONL</small></div></div>
           <div className={`upload-box ${file ? 'selected' : ''}`} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); setFile(event.dataTransfer.files[0]) }}>
             {file ? (
-              <motion.div className="file-selected" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
+              <motion.div className={`file-selected ${running ? 'scanning' : ''}`} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.3 }}>
                 <div className="file-type"><FileText size={21} /></div>
-                <div><strong>{file.name}</strong><span>{(file.size / 1024).toFixed(1)} KB · Ready to analyze</span></div>
+                <div><strong>{file.name}</strong><span>{running ? 'Analyzing…' : `${(file.size / 1024).toFixed(1)} KB · Ready to analyze`}</span></div>
                 <label className="change-file">Change<input type="file" accept=".csv,.xlsx,.parquet,.tsv,.json,.jsonl" onChange={chooseFile} /></label>
                 <button className="remove-file" onClick={() => setFile(null)} aria-label="Remove selected file"><X size={16} /></button>
               </motion.div>
@@ -389,13 +404,43 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
 
         <motion.aside className="process-panel" variants={rise}>
           <p className="eyebrow"><Sparkles size={13} /> YOUR ANALYSIS</p>
-          <h2>{running ? 'Building your brief' : 'A clear path to clarity'}</h2>
+          <h2>
+            {running ? 'Building your brief' : 'A clear path to clarity'}
+            {running && <span className="working-dots" aria-hidden><i /><i /><i /></span>}
+          </h2>
+          <div className="process-progress" role="progressbar" aria-valuemin={0} aria-valuemax={STEPS.length} aria-valuenow={running ? step + 1 : 0}>
+            <div className={`process-progress-fill ${running ? 'live' : ''}`} style={{ width: `${running ? ((step + 1) / STEPS.length) * 100 : 0}%` }} />
+          </div>
           <div className="process-list">
-            {STEPS.map((item, index) => (
-              <motion.div className={`process-row ${step > index ? 'done' : ''} ${running && step === index ? 'current' : ''}`} key={item} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + index * 0.06 }}>
-                <span>{step > index ? <Check size={12} /> : `0${index + 1}`}</span><strong>{item}</strong>
-              </motion.div>
-            ))}
+            {STEPS.map((item, index) => {
+              const done = step > index
+              const current = running && step === index
+              return (
+                <motion.div className={`process-row ${done ? 'done' : ''} ${current ? 'current' : ''}`} key={item} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.1 + index * 0.06 }}>
+                  <span>
+                    <AnimatePresence mode="wait" initial={false}>
+                      {done ? (
+                        <motion.span key="done" initial={{ scale: 0, rotate: -45 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: 'spring', stiffness: 500, damping: 22 }} style={{ display: 'grid', placeItems: 'center' }}>
+                          <Check size={12} />
+                        </motion.span>
+                      ) : current ? (
+                        <motion.span key="run" style={{ display: 'grid', placeItems: 'center' }}>
+                          <LoaderCircle className="spin" size={13} />
+                        </motion.span>
+                      ) : (
+                        <motion.span key="idle" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>{`0${index + 1}`}</motion.span>
+                      )}
+                    </AnimatePresence>
+                  </span>
+                  <strong>{item}</strong>
+                  {current && (
+                    <motion.span className="step-status" initial={{ opacity: 0, x: -4 }} animate={{ opacity: 1, x: 0 }}>
+                      working
+                    </motion.span>
+                  )}
+                </motion.div>
+              )
+            })}
           </div>
           <div className="process-note"><ShieldCheck size={17} /><p>Your dataset is executed in an isolated runtime. Reports are saved only when you choose to save them.</p></div>
         </motion.aside>

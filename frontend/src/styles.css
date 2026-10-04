@@ -27,8 +27,8 @@
   --color-ok-soft: #e4f6ee;
 
   /* Fonts → generate font-display / font-sans / font-mono utilities */
-  --font-sans: 'Inter', system-ui, sans-serif;
-  --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-sans: 'Onest', system-ui, sans-serif;
+  --font-display: 'Onest', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   /* Framer-grade motion keyframes */
@@ -88,8 +88,8 @@
   --shadow: 0 2px 6px rgba(16, 24, 40, 0.04), 0 12px 28px -12px rgba(16, 24, 40, 0.14);
   --shadow-pop: 0 8px 16px rgba(16, 24, 40, 0.06), 0 28px 64px -20px rgba(16, 24, 40, 0.22);
 
-  --font-body: 'Inter', system-ui, sans-serif;
-  --font-display: 'Plus Jakarta Sans', 'Inter', sans-serif;
+  --font-body: 'Onest', system-ui, sans-serif;
+  --font-display: 'Onest', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
 
   font-family: var(--font-body);
@@ -156,7 +156,7 @@ a { color: inherit; }
   display: flex;
   align-items: center;
   gap: 18px;
-  padding: 15px clamp(20px, 5vw, 56px);
+  padding: 12px clamp(16px, 4vw, 40px);
   border-bottom: 1px solid transparent;
   background: rgba(247, 248, 251, 0.78);
   backdrop-filter: blur(18px) saturate(140%);
@@ -182,60 +182,13 @@ a { color: inherit; }
 .logo .logo-bars i:nth-child(3) { height: 10px; }
 .logo strong { font-size: 18px; font-weight: 800; letter-spacing: -0.03em; }
 
-.site-nav nav {
-  display: flex;
-  gap: 4px;
-  margin: 0 auto 0 10px;
-}
-.site-nav nav button {
-  position: relative;
-  color: var(--text-dim);
-  padding: 8px 14px;
-  border-radius: 9px;
-  font-size: 13.5px;
-  font-weight: 500;
-  letter-spacing: -0.01em;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  transition: color 0.18s, background 0.18s;
-}
-.site-nav nav button:hover { color: var(--text); background: var(--panel-2); }
-.site-nav nav button.active { color: var(--accent); }
-.site-nav nav button.active::before {
-  content: '';
-  position: absolute;
-  left: 14px; right: 14px; bottom: 1px;
-  height: 2px; border-radius: 2px;
-  background: var(--accent-grad);
-}
-.site-nav nav button span {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  padding: 2px 7px;
-  border-radius: 20px;
-  background: var(--accent-soft);
-  color: var(--accent);
-}
-.nav-actions { display: flex; align-items: center; gap: 16px; }
-.privacy { font-size: 12.5px; color: var(--text-dim); display: flex; align-items: center; gap: 7px; }
-.privacy svg { color: var(--accent); }
-.quota {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-soft);
-  padding: 8px 13px;
-  border: 1px solid var(--line);
-  border-radius: 9px;
-  background: var(--panel);
-  box-shadow: var(--shadow-sm);
-}
+/* Nav links & actions are Tailwind-driven in the markup (reference layout). */
 
 /* --------------------------------------------------------------- Layout -- */
 .landing, .workspace, .reports-page, .report-page {
-  max-width: 1200px;
+  max-width: 1140px;
   margin: auto;
-  padding: 0 clamp(20px, 5vw, 56px);
+  padding: 0 clamp(16px, 4vw, 40px);
 }
 
 /* --------------------------------------------------------------- Shared -- */
@@ -506,8 +459,8 @@ a { color: inherit; }
 /* -------------------------------------------------------------- Marquee -- */
 .marquee {
   position: relative;
-  margin: 0 0 24px;
-  padding: 22px 0;
+  margin: 0 0 16px;
+  padding: 16px 0;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);
   overflow: hidden;
@@ -541,8 +494,8 @@ a { color: inherit; }
 @keyframes marquee { from { transform: translateX(0); } to { transform: translateX(-50%); } }
 
 /* ------------------------------------------------------------- Sections -- */
-.section { padding: 86px 0; }
-.section-head { max-width: 640px; margin: 0 0 52px; }
+.section { padding: 60px 0; }
+.section-head { max-width: 640px; margin: 0 0 38px; }
 .section-head.center { margin-left: auto; margin-right: auto; text-align: center; }
 .section-head.center .eyebrow { justify-content: center; }
 .section-head h2 {
@@ -702,8 +655,8 @@ a { color: inherit; }
   display: grid;
   grid-template-columns: 1.4fr 2fr;
   gap: 50px;
-  margin-top: 50px;
-  padding: 60px 0 44px;
+  margin-top: 36px;
+  padding: 44px 0 32px;
   border-top: 1px solid var(--line);
 }
 .footer-brand p { color: var(--text-dim); font-size: 13.5px; line-height: 1.65; max-width: 320px; margin: 18px 0 0; }
@@ -727,13 +680,13 @@ a { color: inherit; }
 }
 
 /* ------------------------------------------------------------ Workspace -- */
-.workspace, .reports-page, .report-page { padding-top: 56px; padding-bottom: 110px; }
+.workspace, .reports-page, .report-page { padding-top: 40px; padding-bottom: 72px; }
 .workspace-intro, .page-heading {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
   gap: 30px;
-  margin-bottom: 40px;
+  margin-bottom: 28px;
 }
 .workspace-intro h1, .page-heading h1 {
   font-family: var(--font-display);
@@ -759,7 +712,7 @@ a { color: inherit; }
   border: 1px solid var(--line);
   border-radius: var(--radius-lg);
   background: var(--panel);
-  padding: 34px;
+  padding: 26px;
   box-shadow: var(--shadow);
 }
 .panel-step { display: flex; gap: 14px; align-items: center; }
@@ -900,6 +853,21 @@ a { color: inherit; }
 .process-row.done { color: var(--text-soft); }
 .process-row.done span { background: var(--ok-soft); border-color: rgba(15, 157, 107, 0.4); color: var(--ok); }
 .process-row.current { color: var(--text); background: var(--accent-soft); }
+.process-row strong { flex: 1; }
+.step-status {
+  flex: none;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  background: var(--panel);
+  border: 1px solid var(--accent-line);
+  border-radius: 20px;
+  padding: 3px 9px;
+  position: relative;
+  z-index: 1;
+}
 .process-row.current span { border-color: var(--accent); color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
 
 .process-note {
@@ -1201,6 +1169,107 @@ a { color: inherit; }
 .spin { animation: spin 0.9s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
+/* ------------------------------------------------- Processing animations -- */
+/* Overall progress bar in the process panel */
+.process-progress {
+  position: relative;
+  height: 4px;
+  width: 100%;
+  margin: 2px 0 22px;
+  border-radius: 20px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+.process-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 20px;
+  background: var(--accent-grad);
+  transition: width 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+/* moving sheen along the fill while running */
+.process-progress-fill.live::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  transform: translateX(-100%);
+  animation: progressSheen 1.5s ease-in-out infinite;
+}
+@keyframes progressSheen { to { transform: translateX(100%); } }
+
+/* Active step shimmer sweep across the row background */
+.process-row.current {
+  position: relative;
+  overflow: hidden;
+}
+.process-row.current::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.08), transparent);
+  transform: translateX(-100%);
+  animation: rowShimmer 1.8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+.process-row.current > span,
+.process-row.current > strong { position: relative; z-index: 1; }
+@keyframes rowShimmer { to { transform: translateX(100%); } }
+
+/* Pulsing ring on the active step number badge */
+.process-row.current span {
+  position: relative;
+}
+.process-row.current span::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 10px;
+  border: 1.5px solid var(--accent);
+  opacity: 0;
+  animation: pulseRing 1.6s ease-out infinite;
+}
+@keyframes pulseRing {
+  0% { transform: scale(0.85); opacity: 0.7; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+/* Animated working dots in the panel heading */
+.working-dots { display: inline-flex; gap: 3px; margin-left: 6px; vertical-align: middle; }
+.working-dots i {
+  width: 4px; height: 4px; border-radius: 50%;
+  background: var(--accent);
+  animation: dotBounce 1.2s ease-in-out infinite;
+}
+.working-dots i:nth-child(2) { animation-delay: 0.18s; }
+.working-dots i:nth-child(3) { animation-delay: 0.36s; }
+@keyframes dotBounce {
+  0%, 60%, 100% { opacity: 0.35; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+
+/* Soft scanning gradient over the selected file while running */
+.file-selected.scanning { position: relative; overflow: hidden; }
+.file-selected.scanning::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent, rgba(79, 70, 229, 0.12), transparent);
+  transform: translateX(-100%);
+  animation: fileScan 1.6s ease-in-out infinite;
+  pointer-events: none;
+}
+@keyframes fileScan { to { transform: translateX(100%); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .process-progress-fill.live::after,
+  .process-row.current::after,
+  .process-row.current span::before,
+  .working-dots i,
+  .file-selected.scanning::after { animation: none; }
+}
+
 /* --------------------------------------------------------- Responsive -- */
 @media (max-width: 960px) {
   .hero { grid-template-columns: 1fr; gap: 44px; padding: 56px 0 60px; }
@@ -1260,4 +1329,21 @@ a { color: inherit; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; animation-iteration-count: 1 !important; }
+}
+
+
+/* --------------------------------------------------- Headings → Onest 500 -- */
+/* All display headings render at medium weight for an airy, editorial feel. */
+.hero h1,
+.section-head h2,
+.feature-card h3,
+.how-step h3,
+.cta-band h2,
+.workspace-intro h1,
+.page-heading h1,
+.process-panel h2,
+.empty-library h2,
+.report-paper h1,
+.report-columns.full h2 {
+  font-weight: 500;
 }
