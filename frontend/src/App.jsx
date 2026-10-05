@@ -833,9 +833,9 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate }) {
           <span className="footer-credit">
             UI/UX by{' '}
             <a href="https://talhairfandev.me" target="_blank" rel="noopener noreferrer">Talha Irfan</a>
-            {' · Backend by '}
+            {' · Cloud Engineer '}
             <a href="https://github.com/abdulrdeveloper" target="_blank" rel="noopener noreferrer">@abdulrdeveloper</a>
-            {' · ML by '}
+            {' · Backend Engineer '}
             <a href="https://github.com/bilalhaider-ux" target="_blank" rel="noopener noreferrer">Bilal Haider</a>
           </span>
         </div>
