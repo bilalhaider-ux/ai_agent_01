@@ -313,6 +313,24 @@ button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: 0; }
 button:disabled { cursor: not-allowed; opacity: 0.5; }
 a { color: inherit; }
+
+/* ---- Defensive overflow guards: nothing may exceed the viewport width --- */
+/* Media never overflows its container. */
+img, svg, video, canvas, iframe { max-width: 100%; height: auto; }
+/* Preformatted/dynamic text (generated code, logs, JSON) wraps instead of
+   forcing horizontal scroll on the whole page. */
+pre, code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-word; }
+/* Long unbroken strings (filenames, URLs, column names) break rather than
+   stretching their flex/grid parent past the viewport edge. */
+.staged-file-card, .report-content, .report-answer, .report-columns.full,
+.details-reader, .metrics-reader, .legal-page, .overview-cards {
+  overflow-wrap: anywhere;
+}
+/* Grid/flex children are allowed to shrink below their intrinsic content
+   width — the usual cause of mobile horizontal overflow. */
+.studio-grid > *, .report-columns.full > *, .overview-cards > *,
+.details-reader > *, .metrics-reader > * { min-width: 0; }
+
 ::selection { background: rgba(79, 70, 229, 0.18); color: var(--accent-strong); }
 
 ::-webkit-scrollbar { width: 12px; height: 12px; }
@@ -1551,8 +1569,9 @@ a { color: inherit; }
   }
   .studio-run-btn { justify-content: center; width: 100%; padding: 12px 18px; font-size: 14px; }
 
-  /* Staged file card: let actions wrap below the file meta */
-  .staged-file-card .flex.items-start { flex-wrap: wrap; }
+  /* Staged file card: keep the filename contained; wrap actions below meta */
+  .staged-file-row { flex-wrap: wrap; }
+  .staged-file-actions { margin-left: auto; }
 
   /* Dropzone a touch tighter */
   .studio-dropzone { padding: 26px 16px; }
@@ -1820,7 +1839,7 @@ a { color: inherit; }
   border-radius: 20px;
   padding: 5px 10px;
 }
-.metric-number { font-family: var(--font-display); font-weight: 800; font-size: 26px; letter-spacing: -0.03em; color: var(--text); }
+.metric-number { font-family: var(--font-display); font-weight: 800; font-size: 26px; letter-spacing: -0.03em; color: var(--text); overflow-wrap: anywhere; word-break: break-word; min-width: 0; }
 .metric-table-wrap { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--line); }
 .metric-table-wrap table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .metric-table-wrap th {

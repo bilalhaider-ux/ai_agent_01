@@ -991,15 +991,15 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
             {/* File Staging State */}
             {file ? (
               <motion.div className="staged-file-card" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-center gap-3">
+                <div className="staged-file-row flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 flex-1 items-center gap-3">
                     <div className="staged-file-badge">
                       <Table2 size={20} className="text-brand" />
                     </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <strong className="text-[14px] font-semibold text-ink">{file.name}</strong>
-                        <span className="rounded bg-brand-soft px-1.5 py-0.5 font-mono text-[10px] font-medium text-brand">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex min-w-0 items-center gap-2">
+                        <strong className="min-w-0 flex-1 truncate text-[14px] font-semibold text-ink">{file.name}</strong>
+                        <span className="shrink-0 rounded bg-brand-soft px-1.5 py-0.5 font-mono text-[10px] font-medium text-brand">
                           {fileMeta?.format || 'DATA'}
                         </span>
                       </div>
@@ -1011,7 +1011,7 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="staged-file-actions flex shrink-0 items-center gap-2">
                     <label className="staged-action-btn">
                       Replace
                       <input type="file" accept=".csv,.xlsx,.parquet,.tsv,.json,.jsonl" onChange={handleChooseFile} />
