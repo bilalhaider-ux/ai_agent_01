@@ -191,11 +191,8 @@ function Magnetic({ children, className, strength = 0.4, onClick, type = 'button
   const y = useSpring(useMotionValue(0), { stiffness: 300, damping: 20 })
 
   function onMove(e) {
-    if (reduce) return
-    const rect = ref.current?.getBoundingClientRect()
-    if (!rect) return
-    x.set((e.clientX - (rect.left + rect.width / 2)) * strength)
-    y.set((e.clientY - (rect.top + rect.height / 2)) * strength)
+    // Magnetic cursor-follow disabled: keep the button stationary on hover.
+    return
   }
   function onLeave() { x.set(0); y.set(0) }
 
@@ -696,41 +693,41 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate }) {
 
           {/* single elegant chart card */}
           <TiltCard className="chart-tilt" max={6} scale={1.015}>
-          <figure className="m-0 overflow-hidden rounded-[20px] border border-hairline bg-panel shadow-[0_8px_16px_rgba(16,24,40,0.05),0_36px_80px_-28px_rgba(16,24,40,0.26)]">
-            {/* header */}
-            <figcaption className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-5 sm:px-8">
-              <div>
-                <span className="font-mono text-[10px] tracking-[0.14em] text-ink-dim">TOTAL REVENUE BY CATEGORY</span>
-                <strong className="mt-1.5 block font-display text-[22px] font-extrabold tracking-[-0.03em] text-ink">$14,635.64</strong>
-              </div>
-              <span className="flex items-center gap-1.5 rounded-full bg-ok-soft px-3 py-1.5 font-mono text-[9px] tracking-[0.12em] text-ok"><Check size={11} /> VERIFIED</span>
-            </figcaption>
+            <figure className="m-0 overflow-hidden rounded-[20px] border border-hairline bg-panel shadow-[0_8px_16px_rgba(16,24,40,0.05),0_36px_80px_-28px_rgba(16,24,40,0.26)]">
+              {/* header */}
+              <figcaption className="flex items-center justify-between gap-3 border-b border-hairline px-6 py-5 sm:px-8">
+                <div>
+                  <span className="font-mono text-[10px] tracking-[0.14em] text-ink-dim">TOTAL REVENUE BY CATEGORY</span>
+                  <strong className="mt-1.5 block font-display text-[22px] font-extrabold tracking-[-0.03em] text-ink">$14,635.64</strong>
+                </div>
+                <span className="flex items-center gap-1.5 rounded-full bg-ok-soft px-3 py-1.5 font-mono text-[9px] tracking-[0.12em] text-ok"><Check size={11} /> VERIFIED</span>
+              </figcaption>
 
-            {/* chart */}
-            <div className="px-6 pt-8 pb-6 sm:px-8">
-              <div className="flex items-end gap-3 sm:gap-5" style={{ height: 200 }}>
-                {PREVIEW_CATEGORIES.map((c, i) => {
-                  const pct = Math.round((c.value / PREVIEW_CATEGORIES[0].value) * 100)
-                  return (
-                    <div key={c.label} className="flex flex-1 flex-col items-center justify-end gap-2.5" style={{ height: '100%' }}>
-                      <span className="font-mono text-[10px] font-medium text-ink-dim">${(c.value / 1000).toFixed(1)}k</span>
-                      <motion.span
-                        className="w-full rounded-t-[6px]"
-                        style={{ height: `${pct}%`, background: i === 0 ? 'linear-gradient(to top, var(--color-brand), var(--color-brand-hot))' : 'var(--color-brand-line)', transformOrigin: 'bottom' }}
-                        initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ once: true }}
-                        transition={{ delay: 0.3 + i * 0.08, duration: 0.6, ease: easeOut }}
-                      />
-                    </div>
-                  )
-                })}
+              {/* chart */}
+              <div className="px-6 pt-8 pb-6 sm:px-8">
+                <div className="flex items-end gap-3 sm:gap-5" style={{ height: 200 }}>
+                  {PREVIEW_CATEGORIES.map((c, i) => {
+                    const pct = Math.round((c.value / PREVIEW_CATEGORIES[0].value) * 100)
+                    return (
+                      <div key={c.label} className="flex flex-1 flex-col items-center justify-end gap-2.5" style={{ height: '100%' }}>
+                        <span className="font-mono text-[10px] font-medium text-ink-dim">${(c.value / 1000).toFixed(1)}k</span>
+                        <motion.span
+                          className="w-full rounded-t-[6px]"
+                          style={{ height: `${pct}%`, background: i === 0 ? 'linear-gradient(to top, var(--color-brand), var(--color-brand-hot))' : 'var(--color-brand-line)', transformOrigin: 'bottom' }}
+                          initial={{ scaleY: 0 }} whileInView={{ scaleY: 1 }} viewport={{ once: true }}
+                          transition={{ delay: 0.3 + i * 0.08, duration: 0.6, ease: easeOut }}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+                <div className="mt-3 flex gap-3 border-t border-hairline pt-3 sm:gap-5">
+                  {PREVIEW_CATEGORIES.map((c) => (
+                    <span key={c.label} className="flex-1 truncate text-center text-[11px] text-ink-dim">{c.label.split(' ')[0]}</span>
+                  ))}
+                </div>
               </div>
-              <div className="mt-3 flex gap-3 border-t border-hairline pt-3 sm:gap-5">
-                {PREVIEW_CATEGORIES.map((c) => (
-                  <span key={c.label} className="flex-1 truncate text-center text-[11px] text-ink-dim">{c.label.split(' ')[0]}</span>
-                ))}
-              </div>
-            </div>
-          </figure>
+            </figure>
           </TiltCard>
 
           {/* minimal verified-metric footer */}
@@ -814,8 +811,8 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate }) {
           <h2>Ask your data a better question.</h2>
           <p>Upload a dataset and get a decision-ready brief in minutes. No account, no setup, private by default.</p>
           <div className="hero-actions">
-            <motion.button className="primary-cta" onClick={onStart} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>Start an analysis <ArrowUpRight size={17} /></motion.button>
-            <motion.button className="ghost-cta" onClick={onReports} whileHover={{ y: -2 }} whileTap={{ scale: 0.98 }}>View saved reports <ChevronRight size={15} /></motion.button>
+            <motion.button className="primary-cta" onClick={onStart} whileTap={{ scale: 0.98 }}>Start an analysis <ArrowUpRight size={17} /></motion.button>
+            <motion.button className="ghost-cta" onClick={onReports} whileTap={{ scale: 0.98 }}>View saved reports <ChevronRight size={15} /></motion.button>
           </div>
         </motion.div>
       </section>
