@@ -7,7 +7,7 @@ from typing import Any
 
 from app.agent.graph import build_data_agent_graph
 from app.agent.grounding import validate_metric_contract
-from .report_service import build_report
+from .report_service import build_datasnap_suggestions, build_report
 
 def get_analysis(analysis_id: str) -> dict[str, Any] | None:
     from .job_service import job_store
@@ -31,7 +31,9 @@ def run_analysis(dataset_path: Path, query: str, provider: str | None, model: st
         grounding = {
             "status": "eda_only",
             "analysis_id": analysis_id,
-            "summary_type": "non_graphical_and_visual_exploratory_data_analysis",
+            "summary_type": "professional_non_graphical_and_visual_exploratory_data_analysis",
+            "metric_count": len(metrics),
+            "data_quality": final_state.get("data_quality", {}),
         }
         markdown, html_report = build_report(synthesis, metrics, execution.get("base64_charts", []))
         record.update({
@@ -40,6 +42,7 @@ def run_analysis(dataset_path: Path, query: str, provider: str | None, model: st
             "answers_to_query": synthesis.get("answers_to_query", ""),
             "statistical_insights": synthesis.get("statistical_insights", []),
             "recommended_actions": synthesis.get("recommended_actions", []),
+            "datasnap_suggestions": build_datasnap_suggestions(metrics),
             "metrics": metrics,
             "grounding": grounding,
             "generated_code": final_state.get("generated_code", ""),

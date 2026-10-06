@@ -45,8 +45,10 @@ class TestApi(unittest.TestCase):
         self.assertEqual(result["grounding"]["status"], "eda_only")
         self.assertEqual(
             result["grounding"]["summary_type"],
-            "non_graphical_and_visual_exploratory_data_analysis",
+            "professional_non_graphical_and_visual_exploratory_data_analysis",
         )
+        self.assertGreater(result["grounding"]["data_quality"]["row_count"], 0)
+        self.assertGreater(result["grounding"]["metric_count"], 0)
         eda = result["metrics"]["exploratory_data_analysis"]
         self.assertIn("correlation_matrix_pearson", eda)
         self.assertIn("quality_flags", eda)

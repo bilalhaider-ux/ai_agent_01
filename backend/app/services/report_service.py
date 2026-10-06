@@ -58,7 +58,7 @@ def _chart_gallery(charts: list[str]) -> str:
     return f'<div class="chart-grid">{items}</div>'
 
 
-def _datasnap_suggestion(metrics: dict[str, Any]) -> list[str]:
+def build_datasnap_suggestions(metrics: dict[str, Any]) -> list[str]:
     """Build conservative next-step guidance from observed EDA artifacts."""
     eda = metrics.get("exploratory_data_analysis", metrics)
     non_graphical = eda.get("non_graphical", eda) if isinstance(eda, dict) else {}
@@ -101,7 +101,7 @@ def _datasnap_suggestion(metrics: dict[str, Any]) -> list[str]:
 
 def markdown_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: list[str]) -> str:
     eda = metrics.get('exploratory_data_analysis', metrics)
-    suggestions = _datasnap_suggestion(metrics)
+    suggestions = build_datasnap_suggestions(metrics)
     lines = [
         '# Exploratory Data Analysis Report',
         '',
@@ -125,7 +125,7 @@ def markdown_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: 
 
 def html_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: list[str]) -> str:
     chart_markup = _chart_gallery(charts)
-    suggestion_markup = ''.join(f'<li>{_text(suggestion)}</li>' for suggestion in _datasnap_suggestion(metrics))
+    suggestion_markup = ''.join(f'<li>{_text(suggestion)}</li>' for suggestion in build_datasnap_suggestions(metrics))
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Exploratory Data Analysis Report</title>
 <style>body{{font:15px/1.6 system-ui;max-width:1000px;margin:40px auto;padding:0 20px;color:#18202a}}pre{{overflow:auto;background:#f3f5f9;padding:16px;border-radius:8px}}.chart-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}}.chart img{{width:100%}}@media(max-width:700px){{.chart-grid{{grid-template-columns:1fr}}}}</style></head>

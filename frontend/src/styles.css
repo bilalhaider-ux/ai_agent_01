@@ -67,11 +67,6 @@
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
-/* Slow drifting background grid for depth */
-@keyframes gridDrift {
-  0%   { background-position: 0 0; }
-  100% { background-position: 160px 160px; }
-}
 /* Light sweep shimmer across skeletons / verified pills */
 @keyframes shimmer {
   0%   { background-position: -200% 0; }
@@ -90,12 +85,6 @@
 }
 
 /* ---- Cinematic utility helpers ---------------------------------------- */
-.cine-grid {
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 44px 44px;
-}
 .cine-gradient-text {
   background-size: 220% 220%;
   animation: gradientShift 8s ease infinite;
@@ -182,8 +171,7 @@
   position: absolute;
   inset: 0;
   opacity: .55;
-  background-image: linear-gradient(var(--accent-line) 1px, transparent 1px), linear-gradient(90deg, var(--accent-line) 1px, transparent 1px);
-  background-size: 28px 28px;
+  background: radial-gradient(circle at 50% 100%, var(--accent-line), transparent 68%);
 }
 .data-pulse-scanline {
   position: absolute;
@@ -417,17 +405,13 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-wo
     radial-gradient(50vw 44vh at 8% -6%, rgba(79, 70, 229, 0.06), transparent 60%);
   pointer-events: none;
 }
-/* Faint engineering grid, masked to the top */
+/* Soft ambient glow keeps the shell layered without competing with content. */
 .site-shell::after {
   content: '';
   position: fixed;
   inset: 0;
   z-index: -1;
-  background-image:
-    linear-gradient(var(--grid-line) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
-  background-size: 64px 64px;
-  mask-image: radial-gradient(ellipse 90% 52% at 50% -4%, #000 8%, transparent 70%);
+  background: radial-gradient(ellipse 75% 34% at 50% 0%, var(--grid-line), transparent 72%);
   pointer-events: none;
 }
 
@@ -813,10 +797,12 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-wo
   content: '';
   position: absolute; left: 0; top: 0; height: 3px; width: 0;
   background: var(--accent-grad);
-  transition: width 0.3s ease;
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform 0.3s ease;
 }
 .feature-card:hover { border-color: var(--accent-line); box-shadow: var(--shadow); transform: translateY(-3px); }
-.feature-card:hover::after { width: 100%; }
+.feature-card:hover::after { transform: scaleX(1); }
 .feature-icon {
   display: grid; place-items: center;
   width: 44px; height: 44px;
@@ -1150,11 +1136,6 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-wo
   background: linear-gradient(165deg, var(--panel), var(--accent-soft));
   box-shadow: var(--shadow-sm);
   overflow: hidden;
-}
-.legal-head::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 3px;
-  background: var(--accent-grad);
 }
 .legal-head-icon {
   display: grid; place-items: center;
@@ -1723,11 +1704,6 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-wo
   border-bottom: 1px solid var(--line);
   background: linear-gradient(165deg, var(--panel), var(--accent-soft));
 }
-.report-paper-head::before {
-  content: '';
-  position: absolute; left: 0; top: 0; right: 0; height: 3px;
-  background: var(--accent-grad);
-}
 .report-paper h1 {
   font-family: var(--font-display);
   font-weight: 800;
@@ -1800,18 +1776,11 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-wo
   letter-spacing: -0.015em;
 }
 .report-answer {
-  position: relative;
   border-radius: var(--radius);
   background: var(--accent-soft);
   border: 1px solid var(--accent-line);
-  padding: 24px 26px 24px 30px;
+  padding: 24px 26px;
   max-width: 880px;
-}
-.report-answer::before {
-  content: '';
-  position: absolute; left: 0; top: 18px; bottom: 18px;
-  width: 3px; border-radius: 3px;
-  background: var(--accent-grad);
 }
 .report-answer p { font-size: 15.5px; line-height: 1.7; margin: 10px 0 0; color: var(--text); }
 
@@ -1960,11 +1929,13 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-wo
   content: '';
   position: absolute;
   left: 0; bottom: -2px;
-  height: 1.5px; width: 0;
+  height: 1.5px; width: 100%;
+  transform: scaleX(0);
+  transform-origin: left;
   background: var(--accent-grad);
-  transition: width 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
 }
-.footer-links button:hover::after, .footer-links span.lnk:hover::after { width: 100%; }
+.footer-links button:hover::after, .footer-links span.lnk:hover::after { transform: scaleX(1); }
 
 .feature-card::before {
   content: '';
