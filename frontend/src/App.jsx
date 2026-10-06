@@ -4,6 +4,7 @@ import { Activity, ArrowLeft, ArrowUpRight, BarChart3, BrainCircuit, Check, Chev
 import Lenis from 'lenis'
 import 'lenis/dist/lenis.css'
 import { listReports, removeReport, saveReport } from './lib/storage'
+import LightTunnel from './LightTunnel'
 
 const API_URL = import.meta.env.VITE_AGENT_API_URL || 'http://127.0.0.1:8000'
 const DEFAULT_QUERY = 'Analyze revenue by product category and identify return risks'
@@ -437,7 +438,7 @@ export default function App() {
       </motion.header>
 
       <AnimatePresence mode="wait">
-        {page === 'landing' && <Landing key="landing" onStart={() => navigate('analyze')} onReports={() => navigate('reports')} onLearnMore={scrollToFeatures} onNavigate={navigate} />}
+        {page === 'landing' && <Landing key="landing" theme={theme} onStart={() => navigate('analyze')} onReports={() => navigate('reports')} onLearnMore={scrollToFeatures} onNavigate={navigate} />}
         {page === 'analyze' && <Analyze key="analyze" file={file} setFile={setFile} query={query} setQuery={setQuery} running={running} step={step} error={error} onRun={runAnalysis} onReports={() => navigate('reports')} />}
         {page === 'reports' && <Reports key="reports" reports={reports} onOpen={openReport} onDelete={deleteReport} onNew={() => navigate('analyze')} />}
         {page === 'report' && <ReportPage key="report" report={report || reports.find(item => item.analysis_id === reportId)} saved={reports.some(item => item.analysis_id === reportId)} onSave={async item => { await saveReport(item); setReports(await listReports()) }} onBack={() => navigate('reports')} download={download} />}
@@ -630,13 +631,44 @@ function Pricing({ onStart }) {
 
 
 
-function Landing({ onStart, onReports, onLearnMore, onNavigate }) {
+function Landing({ onStart, onReports, onLearnMore, onNavigate, theme }) {
   return (
     <MMain className="landing" variants={pageMotion} initial="initial" animate="animate" exit="exit">
       {/* ============================ HERO (full section) ============================ */}
-      <section className="relative flex min-h-[calc(100svh-60px)] flex-col items-center justify-center overflow-x-clip px-5 py-10 text-center">
-        {/* animated ambient glow */}
-        <div aria-hidden className="pointer-events-none absolute left-1/2 top-[-60px] -z-10 h-[460px] w-[92vw] max-w-[680px] -translate-x-1/2 rounded-full bg-[radial-gradient(50%_50%_at_50%_50%,rgba(124,58,237,0.22),transparent_70%)] blur-2xl motion-safe:animate-[var(--animate-blob)]" />
+      <section className="relative flex min-h-[calc(100svh-60px)] flex-col items-center justify-center px-5 py-10 text-center">
+        {/* ---------- animated LightTunnel background (full-bleed) ---------- */}
+        <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 bottom-0 -z-10 w-screen -translate-x-1/2 overflow-hidden [mask-image:radial-gradient(ellipse_70%_75%_at_50%_45%,#000_45%,transparent_85%)]">
+          <LightTunnel
+            className="!absolute !inset-0 h-full w-full"
+            cableColor="#7c3aed"
+            pulseColor="#8b84ff"
+            tunnelColor="#4f46e5"
+            tunnelOpacity={0}
+            speed={0.05}
+            flowDirection="outward"
+            pulseSpeed={2}
+            pulseLength={0.28}
+            pulseBlend={1}
+            pulseWidth={1}
+            cableCount={22}
+            thickness={0.32}
+            rimWidth={0.14}
+            waviness={0.3}
+            sway={0.5}
+            size={1.0}
+            glow={1.1}
+            fadeNear={0.45}
+            fadeFar={2}
+            brightness={theme === 'light' ? 0.9 : 1.0}
+            colorVariance
+            grain
+            grainIntensity={0.05}
+            opacity={theme === 'light' ? 0.55 : 0.9}
+            mouseInteraction
+            mouseStrength={0.12}
+            lightMode={theme === 'light'}
+          />
+        </div>
 
         <motion.button
           className="group mb-6 inline-flex max-w-full items-center gap-2 whitespace-nowrap rounded-full border border-hairline-strong bg-panel py-1 pl-1.5 pr-3 text-[11.5px] font-medium text-ink-soft shadow-sm transition-colors hover:border-brand-line sm:text-[12px]"
