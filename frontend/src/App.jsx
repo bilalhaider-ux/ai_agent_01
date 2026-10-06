@@ -7,6 +7,7 @@ import { listReports, removeReport, saveReport } from './lib/storage'
 import LightTunnel from './LightTunnel'
 
 const API_URL = import.meta.env.VITE_AGENT_API_URL || 'http://127.0.0.1:8000'
+const INITIAL_REQUEST_TIMEOUT_MS = 120_000
 const DEFAULT_QUERY = 'Run a comprehensive exploratory data analysis with statistical summaries and visualizations'
 const STEPS = ['Read dataset', 'Profile data quality', 'Compute statistics', 'Build visualizations', 'Prepare EDA report']
 
@@ -351,7 +352,7 @@ export default function App() {
     const payload = new FormData(); payload.append('query', query.trim()); payload.append('dataset', file); payload.append('provider', 'gemini')
     const timer = setInterval(() => setStep(current => Math.min(current + 1, STEPS.length - 1)), 1500)
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 15_000)
+    const timeout = setTimeout(() => controller.abort(), INITIAL_REQUEST_TIMEOUT_MS)
     try {
       const response = await fetch(`${API_URL}/api/v1/analyze`, { method: 'POST', body: payload, credentials: 'include', signal: controller.signal })
       clearTimeout(timeout)
@@ -379,7 +380,7 @@ export default function App() {
       setReport(job); navigate('report', job.analysis_id)
     } catch (requestError) {
       const message = requestError.name === 'AbortError'
-        ? 'The analysis API did not respond within 15 seconds. Please check the backend deployment and try again.'
+        ? 'The dataset upload did not complete within 2 minutes. Large files can take longer to upload; please retry or check the backend connection.'
         : requestError.message || 'The analysis request could not reach the API.'
       setError(message)
     } finally { clearTimeout(timeout); clearInterval(timer); setRunning(false) }
