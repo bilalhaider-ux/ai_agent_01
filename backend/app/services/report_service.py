@@ -99,9 +99,69 @@ def build_datasnap_suggestions(metrics: dict[str, Any]) -> list[str]:
     return suggestions
 
 
+def build_strategic_recommendations(metrics: dict[str, Any]) -> list[dict[str, str]]:
+    """Create actions only when the corresponding computed evidence exists."""
+    eda = metrics.get("exploratory_data_analysis", metrics)
+    non_graphical = eda.get("non_graphical", eda) if isinstance(eda, dict) else {}
+    actions: list[dict[str, str]] = []
+    missing = non_graphical.get("missing_percentages", {})
+    if isinstance(missing, dict):
+        affected = [(column, value) for column, value in missing.items() if value]
+        if affected:
+            column, percentage = max(affected, key=lambda item: item[1])
+            actions.append({
+                "title": "Prioritize missing-value controls",
+                "recommended_action": f"Profile and define a documented treatment for `{column}` before downstream reporting or modeling.",
+                "data_justification": f"`{column}` has {percentage:.4f}% missing values.",
+                "business_reason": "Unresolved missingness can change denominators, distort averages, and create inconsistent operational reporting.",
+            })
+    outliers = non_graphical.get("outlier_counts_iqr", {})
+    if isinstance(outliers, dict):
+        affected = [(column, value) for column, value in outliers.items() if value]
+        if affected:
+            column, count = max(affected, key=lambda item: item[1])
+            actions.append({
+                "title": "Investigate IQR outliers",
+                "recommended_action": f"Review the {count:,} IQR-flagged rows in `{column}` and document whether they are valid extremes or data-quality errors.",
+                "data_justification": f"IQR profiling identified {count:,} outlier values in `{column}`.",
+                "business_reason": "Unreviewed extremes can disproportionately influence averages, forecasts, thresholds, and resource planning.",
+            })
+    tests = non_graphical.get("statistical_tests", {})
+    significant = [
+        item for item in tests.get("categorical_numeric_tests", [])
+        if item.get("significant_at_0_05")
+    ]
+    if significant:
+        item = significant[0]
+        actions.append({
+            "title": "Validate significant group differences",
+            "recommended_action": f"Segment the `{item['numeric']}` process by `{item['categorical']}` and run a domain review of the group-level drivers.",
+            "data_justification": f"{item['test']} returned statistic {item['statistic']:.4f} with p-value {item['p_value']:.4f}.",
+            "business_reason": "A statistically significant group difference indicates that one pooled average may hide materially different segment behavior.",
+        })
+    relationships = non_graphical.get("multivariate", {}).get("strongest_numeric_relationships", [])
+    if relationships:
+        item = relationships[0]
+        actions.append({
+            "title": "Validate the strongest numeric relationship",
+            "recommended_action": f"Review the relationship between `{item['columns'][0]}` and `{item['columns'][1]}` for leakage, shared definitions, and plausible domain drivers.",
+            "data_justification": f"Pearson correlation is {item['pearson_r']:.4f} (absolute value {item['absolute_r']:.4f}).",
+            "business_reason": "Strong association can reveal duplicated measures, process dependencies, or useful monitoring pairs, but it does not prove causation.",
+        })
+    if not actions:
+        actions.append({
+            "title": "Define a validated analysis target",
+            "recommended_action": "Confirm a business question and target variable with domain owners before taking operational action.",
+            "data_justification": "No missingness, outlier, significant-test, or numeric-relationship trigger exceeded the implemented review rules.",
+            "business_reason": "A documented target prevents teams from turning descriptive patterns into unsupported decisions.",
+        })
+    return actions[:4]
+
+
 def markdown_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: list[str]) -> str:
     eda = metrics.get('exploratory_data_analysis', metrics)
     suggestions = build_datasnap_suggestions(metrics)
+    actions = build_strategic_recommendations(metrics)
     lines = [
         '# Exploratory Data Analysis Report',
         '',
@@ -117,11 +177,32 @@ def markdown_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: 
         '## Multivariate Analysis',
         'Numeric feature relationships are summarized with a Pearson correlation matrix and strongest pairwise relationships.',
         '',
-        '## Non-Graphical Statistical Summaries',
+        '## 1. Data Quality & Distribution Summary',
+        'Exact shape, missingness percentages, IQR outlier counts, and high-cardinality columns are reported below.',
+        '',
+        '## 2. Statistical Core Discoveries',
+        'The report includes skewness, kurtosis, variance proxies, Pearson/Spearman relationships, ANOVA or Welch t-tests, and Chi-square tests when valid groups exist.',
+        '',
+        '## 3. Mandatory Next Actions & Strategic Recommendations',
+    ]
+    for index, action in enumerate(actions, 1):
+        lines.extend([
+            '',
+            f"### 🚀 Action {index}: {action['title']}",
+            f"- **Recommended Action:** {action['recommended_action']}",
+            f"- **Data Justification:** {action['data_justification']}",
+            f"- **Business Reason:** {action['business_reason']}",
+        ])
+    lines.extend([
+        '',
+        '## Verified EDA Output',
         f"```json\n{json.dumps(eda, indent=2, default=str)}\n```",
         '',
+        '## Non-Graphical Statistical Summaries',
+        'The verified JSON above contains the complete non-graphical statistical output.',
+        '',
         '## Data Visualizations',
-    ]
+    ])
     lines.extend(f'### Visualization {index}\n![Visualization {index}](data:image/png;base64,{chart})' for index, chart in enumerate(charts, 1))
     lines.extend([
         '',
@@ -143,7 +224,10 @@ def html_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: list
 <h2>Univariate Analysis</h2><p>Independent feature profiles include distributions, missingness, cardinality, quantiles, skewness, kurtosis, and IQR outliers.</p>
 <h2>Bivariate Analysis</h2><p>Numeric pairs include Pearson and Spearman relationships; categorical-numeric pairs include group counts, means, and medians.</p>
 <h2>Multivariate Analysis</h2><p>Numeric features include a Pearson correlation matrix and strongest pairwise relationships.</p>
-<h2>Non-Graphical Statistical Summaries</h2>{_metric_sections(metrics)}
+<h2>1. Data Quality &amp; Distribution Summary</h2>{_metric_sections(metrics)}
+<h2>2. Statistical Core Discoveries</h2><p>Skewness, kurtosis, Pearson/Spearman relationships, ANOVA or Welch t-tests, and Chi-square tests are included when valid.</p>
+<h2>3. Mandatory Next Actions &amp; Strategic Recommendations</h2><ul>{''.join(f"<li><strong>{_text(action['title'])}:</strong> {_text(action['recommended_action'])}<br><strong>Data Justification:</strong> {_text(action['data_justification'])}<br><strong>Business Reason:</strong> {_text(action['business_reason'])}</li>" for action in build_strategic_recommendations(metrics))}</ul>
+<h2>Verified EDA Output</h2>{_metric_sections(metrics)}
 <h2>Data Visualizations</h2>{chart_markup}
 <h2>Suggestion by DataSnap</h2><p>The following are conservative next steps based only on the observed EDA results:</p><ul>{suggestion_markup}</ul></body></html>"""
 

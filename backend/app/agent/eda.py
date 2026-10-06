@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import io
+from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -157,6 +158,70 @@ def _multivariate_analysis(
     }
 
 
+def _statistical_tests(
+    df: pl.DataFrame,
+    numeric: list[str],
+    categorical: list[str],
+) -> dict[str, Any]:
+    """Run bounded, assumption-transparent tests for observed interactions."""
+    categorical_numeric: list[dict[str, Any]] = []
+    for category in categorical[:8]:
+        for measure in numeric[:8]:
+            groups: dict[str, list[float]] = defaultdict(list)
+            for row in df.select([category, measure]).drop_nulls().iter_rows():
+                groups[str(row[0])].append(float(row[1]))
+            usable = [values for values in groups.values() if len(values) >= 2]
+            if len(usable) < 2:
+                continue
+            if len(usable) == 2:
+                result = stats.ttest_ind(*usable, equal_var=False)
+                test_name = "Welch t-test"
+            else:
+                result = stats.f_oneway(*usable)
+                test_name = "One-way ANOVA"
+            categorical_numeric.append({
+                "categorical": category,
+                "numeric": measure,
+                "test": test_name,
+                "group_count": len(usable),
+                "sample_sizes": [len(values) for values in usable],
+                "statistic": _finite(result.statistic),
+                "p_value": _finite(result.pvalue),
+                "significant_at_0_05": bool(result.pvalue < 0.05),
+            })
+
+    categorical_pairs: list[dict[str, Any]] = []
+    for index, first in enumerate(categorical[:8]):
+        for second in categorical[index + 1:8]:
+            counts: dict[tuple[str, str], int] = defaultdict(int)
+            first_values: set[str] = set()
+            second_values: set[str] = set()
+            for left, right in df.select([first, second]).drop_nulls().iter_rows():
+                left_key, right_key = str(left), str(right)
+                counts[(left_key, right_key)] += 1
+                first_values.add(left_key)
+                second_values.add(right_key)
+            if len(first_values) < 2 or len(second_values) < 2:
+                continue
+            table = [
+                [counts[(left, right)] for right in second_values]
+                for left in first_values
+            ]
+            result = stats.chi2_contingency(table)
+            categorical_pairs.append({
+                "categorical_columns": [first, second],
+                "test": "Chi-square test of independence",
+                "degrees_of_freedom": int(result.dof),
+                "statistic": _finite(result.statistic),
+                "p_value": _finite(result.pvalue),
+                "significant_at_0_05": bool(result.pvalue < 0.05),
+            })
+    return {
+        "categorical_numeric_tests": categorical_numeric,
+        "categorical_categorical_tests": categorical_pairs,
+    }
+
+
 def _numeric_profile(df: pl.DataFrame, name: str) -> dict[str, Any]:
     values = df.get_column(name).drop_nulls()
     raw = values.to_list()
@@ -169,6 +234,7 @@ def _numeric_profile(df: pl.DataFrame, name: str) -> dict[str, Any]:
         "mean": _finite(values.mean()),
         "median": _finite(values.median()),
         "std": std,
+        "variance": _finite(values.var()),
         "min": _finite(values.min()),
         "max": _finite(values.max()),
         "quantiles": {"q25": q1, "q75": q3},
@@ -219,6 +285,7 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
 
     bivariate = _bivariate_analysis(df, numeric, categorical)
     multivariate = _multivariate_analysis(df, numeric, categorical)
+    statistical_tests = _statistical_tests(df, numeric, categorical)
     charts: list[str] = []
     chart_types: list[str] = []
     for name in numeric[:6]:
@@ -306,6 +373,11 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
             "columns": df.columns,
             "dtypes": {name: str(dtype) for name, dtype in df.schema.items()},
             "missing_counts": {name: int(df.get_column(name).null_count()) for name in df.columns},
+            "missing_percentages": {
+                name: round((df.get_column(name).null_count() / df.height) * 100, 4)
+                if df.height else None
+                for name in df.columns
+            },
             "duplicate_row_count": int(df.is_duplicated().sum()),
             "numeric_summary": numeric_summary,
             "categorical_summary": categorical_summary,
@@ -316,6 +388,16 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
             },
             "bivariate": bivariate,
             "multivariate": multivariate,
+            "statistical_tests": statistical_tests,
+            "high_cardinality_categorical_columns": [
+                {
+                    "column": name,
+                    "unique_count": profile["unique"],
+                    "cardinality_ratio": profile["cardinality_ratio"],
+                }
+                for name, profile in categorical_summary.items()
+                if profile["unique"] >= 20 or (profile["cardinality_ratio"] or 0) >= 0.5
+            ],
             "outlier_counts_iqr": {
                 name: profile["outlier_count_iqr"]
                 for name, profile in numeric_summary.items()
