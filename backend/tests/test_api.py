@@ -52,6 +52,11 @@ class TestApi(unittest.TestCase):
         eda = result["metrics"]["exploratory_data_analysis"]
         self.assertIn("correlation_matrix_pearson", eda)
         self.assertIn("quality_flags", eda)
+        self.assertIn("univariate", eda)
+        self.assertIn("bivariate", eda)
+        self.assertIn("multivariate", eda)
+        self.assertTrue(eda["bivariate"]["numeric_pairs"])
+        self.assertTrue(eda["multivariate"]["strongest_numeric_relationships"])
         self.assertTrue(any("Box plot" in item for item in result["grounding"].get("visualization_types", [])) or result["charts"])
         self.assertEqual(result["generated_code"], "")
         self.assertIn("# Exploratory Data Analysis Report", result["markdown_report"])

@@ -63,13 +63,97 @@ def _date_columns(df: pl.DataFrame) -> list[str]:
 def _correlations(df: pl.DataFrame, numeric: list[str]) -> dict[str, dict[str, float | None]]:
     if len(numeric) < 2:
         return {}
-    values = df.select(numeric).drop_nulls()
+    values = df.select(numeric).drop_nulls().head(100_000)
     if values.height < 3:
         return {}
     matrix = values.to_pandas().corr(method="pearson")
     return {
         column: {other: _finite(matrix.loc[column, other]) for other in numeric}
         for column in numeric
+    }
+
+
+def _bivariate_analysis(
+    df: pl.DataFrame,
+    numeric: list[str],
+    categorical: list[str],
+) -> dict[str, Any]:
+    numeric_pairs: list[dict[str, Any]] = []
+    for index, first in enumerate(numeric):
+        for second in numeric[index + 1:]:
+            values = df.select([first, second]).drop_nulls().head(100_000)
+            if values.height < 3:
+                continue
+            x = values[first].to_list()
+            y = values[second].to_list()
+            pearson = stats.pearsonr(x, y) if len(set(x)) > 1 and len(set(y)) > 1 else None
+            spearman = stats.spearmanr(x, y) if pearson else None
+            numeric_pairs.append({
+                "columns": [first, second],
+                "count": values.height,
+                "pearson_r": _finite(pearson.statistic) if pearson else None,
+                "pearson_p_value": _finite(pearson.pvalue) if pearson else None,
+                "spearman_r": _finite(spearman.statistic) if spearman else None,
+                "spearman_p_value": _finite(spearman.pvalue) if spearman else None,
+            })
+
+    categorical_numeric: list[dict[str, Any]] = []
+    for category in categorical[:8]:
+        for measure in numeric[:8]:
+            grouped = (
+                df.select([category, measure])
+                .drop_nulls()
+                .group_by(category)
+                .agg([
+                    pl.len().alias("count"),
+                    pl.col(measure).mean().alias("mean"),
+                    pl.col(measure).median().alias("median"),
+                ])
+                .sort("count", descending=True)
+                .head(10)
+            )
+            if grouped.height:
+                categorical_numeric.append({
+                    "category": category,
+                    "numeric": measure,
+                    "groups": [
+                        {
+                            "value": str(row[0]),
+                            "count": int(row[1]),
+                            "mean": _finite(row[2]),
+                            "median": _finite(row[3]),
+                        }
+                        for row in grouped.iter_rows()
+                    ],
+                })
+    return {
+        "numeric_pairs": numeric_pairs,
+        "categorical_numeric_groups": categorical_numeric,
+    }
+
+
+def _multivariate_analysis(
+    df: pl.DataFrame,
+    numeric: list[str],
+    categorical: list[str],
+) -> dict[str, Any]:
+    correlations = _correlations(df, numeric)
+    ranked_pairs = []
+    for first, values in correlations.items():
+        for second, value in values.items():
+            if first < second and value is not None:
+                ranked_pairs.append({
+                    "columns": [first, second],
+                    "pearson_r": value,
+                    "absolute_r": abs(value),
+                })
+    ranked_pairs.sort(key=lambda item: item["absolute_r"], reverse=True)
+    return {
+        "numeric_feature_count": len(numeric),
+        "categorical_feature_count": len(categorical),
+        "pearson_correlation_matrix": correlations,
+        "strongest_numeric_relationships": ranked_pairs[:10],
+        "usable_numeric_rows": int(df.select(numeric).drop_nulls().height) if numeric else 0,
     }
 
 
@@ -133,10 +217,12 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
             ],
         }
 
+    bivariate = _bivariate_analysis(df, numeric, categorical)
+    multivariate = _multivariate_analysis(df, numeric, categorical)
     charts: list[str] = []
     chart_types: list[str] = []
     for name in numeric[:6]:
-        values = df.get_column(name).drop_nulls().to_list()
+        values = df.get_column(name).drop_nulls().head(20_000).to_list()
         if values:
             plt.figure(figsize=(7, 4))
             plt.hist(values, bins=min(20, max(5, len(set(values)))), color="#4f46e5", alpha=0.85)
@@ -177,10 +263,12 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
             charts.append(_chart_base64())
             chart_types.append(f"Category frequency: {name}")
 
-    if len(numeric) >= 2:
-        first, second = numeric[:2]
+    for first, second in [
+        pair["columns"] for pair in bivariate["numeric_pairs"][:3]
+    ]:
         pairs = df.select([first, second]).drop_nulls()
         if pairs.height:
+            pairs = pairs.head(20_000)
             plt.figure(figsize=(7, 4))
             plt.scatter(pairs[first].to_list(), pairs[second].to_list(), alpha=0.7, color="#d97706")
             plt.title(f"Relationship between {first} and {second}")
@@ -188,6 +276,17 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
             plt.ylabel(second)
             charts.append(_chart_base64())
             chart_types.append(f"Scatter plot: {first} vs {second}")
+
+    if len(numeric) >= 2 and multivariate["pearson_correlation_matrix"]:
+        matrix = df.select(numeric).drop_nulls().head(100_000).to_pandas().corr(method="pearson")
+        plt.figure(figsize=(max(6, len(numeric) * 0.7), max(5, len(numeric) * 0.6)))
+        image = plt.imshow(matrix.to_numpy(), cmap="coolwarm", vmin=-1, vmax=1, aspect="auto")
+        plt.colorbar(image, label="Pearson r")
+        plt.xticks(range(len(numeric)), numeric, rotation=45, ha="right")
+        plt.yticks(range(len(numeric)), numeric)
+        plt.title("Multivariate Pearson correlation matrix")
+        charts.append(_chart_base64())
+        chart_types.append("Correlation heatmap: numeric features")
 
     quality_flags = []
     if df.height == 0:
@@ -210,6 +309,13 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
             "duplicate_row_count": int(df.is_duplicated().sum()),
             "numeric_summary": numeric_summary,
             "categorical_summary": categorical_summary,
+            "univariate": {
+                "numeric_profiles": numeric_summary,
+                "categorical_profiles": categorical_summary,
+                "date_columns": dates,
+            },
+            "bivariate": bivariate,
+            "multivariate": multivariate,
             "outlier_counts_iqr": {
                 name: profile["outlier_count_iqr"]
                 for name, profile in numeric_summary.items()

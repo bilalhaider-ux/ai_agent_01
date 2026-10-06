@@ -108,6 +108,15 @@ def markdown_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: 
         '## Scope',
         'EDA is a comprehensive methodology that includes both non-graphical statistical summaries and data visualization techniques.',
         '',
+        '## Univariate Analysis',
+        'Each feature is profiled independently for distribution, missingness, cardinality, quantiles, skewness, kurtosis, and IQR outliers.',
+        '',
+        '## Bivariate Analysis',
+        'Numeric pairs include Pearson and Spearman relationships; categorical-numeric pairs include group counts, means, and medians.',
+        '',
+        '## Multivariate Analysis',
+        'Numeric feature relationships are summarized with a Pearson correlation matrix and strongest pairwise relationships.',
+        '',
         '## Non-Graphical Statistical Summaries',
         f"```json\n{json.dumps(eda, indent=2, default=str)}\n```",
         '',
@@ -131,6 +140,9 @@ def html_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: list
 <style>body{{font:15px/1.6 system-ui;max-width:1000px;margin:40px auto;padding:0 20px;color:#18202a}}pre{{overflow:auto;background:#f3f5f9;padding:16px;border-radius:8px}}.chart-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}}.chart img{{width:100%}}@media(max-width:700px){{.chart-grid{{grid-template-columns:1fr}}}}</style></head>
 <body><h1>Exploratory Data Analysis Report</h1>
 <p>EDA is a comprehensive methodology that includes both non-graphical statistical summaries and data visualization techniques.</p>
+<h2>Univariate Analysis</h2><p>Independent feature profiles include distributions, missingness, cardinality, quantiles, skewness, kurtosis, and IQR outliers.</p>
+<h2>Bivariate Analysis</h2><p>Numeric pairs include Pearson and Spearman relationships; categorical-numeric pairs include group counts, means, and medians.</p>
+<h2>Multivariate Analysis</h2><p>Numeric features include a Pearson correlation matrix and strongest pairwise relationships.</p>
 <h2>Non-Graphical Statistical Summaries</h2>{_metric_sections(metrics)}
 <h2>Data Visualizations</h2>{chart_markup}
 <h2>Suggestion by DataSnap</h2><p>The following are conservative next steps based only on the observed EDA results:</p><ul>{suggestion_markup}</ul></body></html>"""
