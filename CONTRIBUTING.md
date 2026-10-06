@@ -1,13 +1,13 @@
 # Contributing
 
-Thank you for improving AI Agent 01. Contributions should preserve the analytics pipeline and keep decision outputs traceable to computed evidence.
+Thank you for improving DataSnap. Contributions should preserve the phased EDA pipeline and keep every reported action traceable to computed evidence.
 
 ## Before Opening a Change
 
 - Read the product behavior and limitations in [README.md](README.md).
 - Do not commit `.env` files, API keys, uploaded datasets containing sensitive information, generated reports, or sandbox output.
 - Keep provider credentials backend-only.
-- Preserve the six workflow stages and existing report formats unless the change explicitly updates the contract.
+- Preserve the phased EDA workflow and existing report formats unless the change explicitly updates the contract.
 
 ## Development
 
@@ -18,7 +18,7 @@ pip install -r requirements.txt
 PYTHONPATH=backend .venv/bin/python -m unittest discover -s backend/tests -v
 ```
 
-Use `LLM_PROVIDER=mock` for tests. Network calls and real provider keys must not be required by the test suite.
+Use `LLM_PROVIDER=mock` for compatibility tests. Network calls and real provider keys must not be required by the test suite. EDA calculations should remain deterministic and dataset-agnostic.
 
 ## Pull Requests
 

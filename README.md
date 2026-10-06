@@ -1,25 +1,25 @@
 # DataSnap
 
-DataSnap turns a business question and a tabular dataset into a decision-ready brief. It profiles the data, plans an analysis, generates Polars/SciPy/Matplotlib code, executes that code in an isolated timed subprocess, self-corrects runtime failures, and returns verified metrics, visual evidence, recommendations, and downloadable reports.
+DataSnap turns an uploaded tabular dataset into a verified, comprehensive exploratory data analysis (EDA) report. It runs a deterministic multi-phase workflow covering data health, univariate profiles, bivariate relationships, multivariate relationships, statistical tests, visualizations, and evidence-backed next actions.
 
 ## Product Flow
 
 1. Open the DataSnap landing page.
 2. Start an analysis and upload a CSV, XLSX, Parquet, TSV, JSON, or JSONL dataset.
-3. Describe the decision or business question.
-4. DataSnap uses Gemini with an automatic fallback chain when a transient provider failure occurs.
-5. Review the completed decision report at its dedicated report route.
+3. Optionally describe the analysis focus.
+4. DataSnap runs the deterministic EDA workflow on the uploaded file.
+5. Review the completed EDA report at its dedicated report route.
 6. Save the report explicitly to the browser's local report library, or download Markdown/HTML.
 
 Saved reports are local to the current browser. No user account or application database is required for this release.
 
 ## What Is Included
 
-- Dataset profiling: schema, types, row and column counts, nulls, duplicates, samples, and summary statistics.
-- LangGraph workflow: context minification, intent planning, code generation, isolated execution, self-correction, and output synthesis.
-- Gemini primary model with configured fallback models for retryable provider errors.
-- Polars, SciPy, and Matplotlib analysis execution with JSON-serializable metrics.
-- Decision reports with executive summary, direct answer, statistical insights, actions, charts, metric tables, provenance, and safety notes.
+- Phase 1 data health: exact shape, data types, missing-value percentages, duplicates, IQR outliers, and high-cardinality categorical columns.
+- Phase 2 statistical discovery: variance, skewness, kurtosis, Pearson/Spearman correlations, ANOVA or Welch t-tests, and Chi-square tests where valid.
+- Univariate, bivariate, and multivariate profiles with JSON-serializable metrics.
+- Polars, SciPy, and Matplotlib analysis with bounded chart sampling for large datasets.
+- EDA reports with verified metrics, visualizations, statistical test outputs, provenance, limitations, and evidence-backed next actions.
 - Professional HTML and Markdown report rendering.
 - Browser report archive using IndexedDB with a localStorage fallback.
 - Redis-backed anonymous quota: five analysis requests per rolling hour using IP and browser-token counters.
@@ -75,7 +75,7 @@ Backend values belong in `backend/.env` locally or Heroku Config Vars in product
 
 | Variable | Purpose |
 | --- | --- |
-| `LLM_PROVIDER` | Use `gemini` for the production provider. |
+| `LLM_PROVIDER` | Retained for provider compatibility; the active EDA workflow is deterministic. |
 | `GEMINI_API_KEY` | Backend-only Gemini credential. |
 | `GEMINI_MODEL` | Primary model, normally `gemini-3.1-flash-lite`. |
 | `GEMINI_FALLBACK_MODELS` | Comma-separated fallback models. |
@@ -85,8 +85,8 @@ Backend values belong in `backend/.env` locally or Heroku Config Vars in product
 | `MAX_REQUESTS_PER_HOUR` | Anonymous analysis limit, normally `5`. |
 | `COOKIE_SECURE` | `false` locally; `true` behind HTTPS. |
 | `CORS_ALLOWED_ORIGINS` | Comma-separated frontend origins. |
-| `MAX_RETRY_COUNT` | Generated-code self-correction budget. |
-| `EXECUTION_TIMEOUT_SECONDS` | Isolated analysis timeout. |
+| `MAX_RETRY_COUNT` | Compatibility retry budget for the retained workflow contract. |
+| `EXECUTION_TIMEOUT_SECONDS` | Compatibility execution timeout setting. |
 | `MAX_UPLOAD_SIZE_BYTES` | Upload limit in bytes. |
 
 The frontend only receives `VITE_AGENT_API_URL`. Provider keys, Redis tokens, and signing secrets must never be placed in frontend environment variables.
@@ -107,10 +107,10 @@ POST /api/v1/analyze
 
 Required fields:
 
-- `query`: business question
+- `query`: optional analysis focus
 - `dataset`: uploaded file
 
-The frontend sends `provider=gemini` and leaves model selection to the backend configuration and fallback chain. The response includes an `analysis_id`, status, verified metrics, charts, report content, and grounding metadata.
+The response includes an `analysis_id`, status, phase-derived verified metrics, charts, report content, and grounding metadata. Provider/model fields remain in the compatibility contract but are not required for deterministic EDA calculations.
 
 Report endpoints:
 
@@ -143,7 +143,7 @@ cd frontend
 npm run build
 ```
 
-Use `LLM_PROVIDER=mock` for offline backend tests. For a real local smoke test, start both services, open the frontend, upload `backend/data/sample_sales_data.csv`, and run the default Gemini analysis. A successful result opens a dedicated `/report/{analysis_id}` view. Saving is explicit; completed reports are not automatically added to the local library.
+Use `LLM_PROVIDER=mock` for offline backend tests. For a real local smoke test, start both services, open the frontend, upload `backend/data/sample_sales_data.csv`, and run EDA. A successful result opens a dedicated `/report/{analysis_id}` view. Saving is explicit; completed reports are not automatically added to the local library.
 
 ## Deployment Summary
 
@@ -153,7 +153,6 @@ The backend is configured for Heroku through the root `Procfile`. The frontend i
 
 - Browser-saved reports disappear when the user clears site data or changes device/browser.
 - The backend report store is process memory only and is not a durable server archive.
-- Generated code runs in a timed subprocess with import/call allowlisting, reduced environment exposure, and resource limits; it is still not a hardened multi-tenant container boundary.
 - Statistical significance and correlation do not establish causation. Reports remain pending human review.
 - The frontend currently provides HTML and Markdown downloads; an XLSX export requires a separate backend export endpoint.
 

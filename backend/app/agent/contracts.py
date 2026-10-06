@@ -17,9 +17,9 @@ class DatasetMinifiedContext(BaseModel):
 
 
 class AnalyticalPlan(BaseModel):
-    """Stage 2: Intent & Plan Contract (Pydantic Structured Plan)."""
+    """Compatibility contract for the deterministic EDA phase plan."""
     primary_intent: str = Field(
-        description="Core question or analytical goal derived from the user query"
+        description="Optional analysis focus retained for API compatibility"
     )
     hypotheses: List[str] = Field(
         default_factory=list,
@@ -55,9 +55,9 @@ class ExecutionResult(BaseModel):
 
 
 class OutputSynthesis(BaseModel):
-    """Stage 6: Output Synthesis Contract."""
-    executive_summary: str = Field(description="High-level summary of findings for stakeholders")
-    statistical_insights: List[str] = Field(description="Specific numerical and statistical insights")
-    answers_to_query: str = Field(description="Direct answers answering the user query")
-    recommended_actions: List[str] = Field(description="Actionable business or analytical recommendations")
-    full_markdown_report: str = Field(description="Formatted decision-ready markdown artifact")
+    """Compatibility contract for the final EDA report envelope."""
+    executive_summary: str = Field(description="High-level EDA completion summary")
+    statistical_insights: List[str] = Field(description="Verified numerical and statistical insights")
+    answers_to_query: str = Field(description="Optional response to the analysis focus")
+    recommended_actions: List[str] = Field(description="Evidence-backed EDA next actions")
+    full_markdown_report: str = Field(description="Formatted EDA markdown artifact")

@@ -21,14 +21,14 @@ Deploy DataSnap directly from the GitHub repository using the Heroku and Vercel 
 - **Pydantic** for data validation and API contracts.
 - **python-multipart** for dataset uploads.
 
-### AI and data analysis
+### EDA and data analysis
 
-- **LangGraph** and **LangChain** for the analysis workflow.
-- **Google Gemini** as the production AI provider, with configurable fallback models.
+- **LangGraph** for workflow compatibility and stage orchestration.
 - **Polars** for tabular data processing.
 - **Pandas, PyArrow, and Fastexcel** for data loading and file support.
 - **SciPy** for statistical analysis.
 - **Matplotlib** for charts.
+- Deterministic Phase 1, Phase 2, and Phase 3 EDA reporting.
 
 ### Storage, security, and deployment
 
@@ -44,8 +44,6 @@ Deploy DataSnap directly from the GitHub repository using the Heroku and Vercel 
 - Access to this project's GitHub repository
 - [Heroku account](https://dashboard.heroku.com/)
 - [Vercel account](https://vercel.com/) connected to GitHub
-- A Gemini API key from [Google AI Studio](https://aistudio.google.com/)
-
 DataSnap has two parts:
 
 - **Backend:** Heroku
@@ -68,10 +66,10 @@ In your Heroku app, open **Settings → Config Vars → Reveal Config Vars**. Ad
 
 | Key | Value |
 | --- | --- |
-| `LLM_PROVIDER` | `gemini` |
-| `GEMINI_API_KEY` | Your Google AI Studio API key |
-| `GEMINI_MODEL` | `gemini-3.1-flash-lite` |
-| `GEMINI_FALLBACK_MODELS` | `gemini-3.5-flash-lite,gemini-2.5-flash-lite` |
+| `LLM_PROVIDER` | `mock` or the configured compatibility provider |
+| `GEMINI_API_KEY` | Only required if an external compatibility provider is enabled |
+| `GEMINI_MODEL` | Compatibility setting; not required for deterministic EDA |
+| `GEMINI_FALLBACK_MODELS` | Compatibility setting; not required for deterministic EDA |
 | `COOKIE_SECURE` | `true` |
 | `RATE_LIMIT_SECRET` | Any long, private random value |
 | `MAX_REQUESTS_PER_HOUR` | `5` |
@@ -130,13 +128,13 @@ Do not add a trailing slash or a page path. Save the value and restart the Herok
 
 Open your Vercel URL and:
 
-1. Click **Analyze**.
+1. Click **Run EDA**.
 2. Upload a dataset.
-3. Enter a business question.
-4. Click **Run analysis**.
+3. Optionally enter an analysis focus.
+4. Review the phased EDA report.
 
 If the report opens, the deployment is complete.
 
 ### Security note
 
-Never commit `.env` files, API keys, Redis tokens, or passwords to GitHub. Add the Gemini key only to Heroku Config Vars. Add only `VITE_AGENT_API_URL` to Vercel.
+Never commit `.env` files, API keys, Redis tokens, or passwords to GitHub. Add provider keys only when a compatibility provider is enabled. Add only `VITE_AGENT_API_URL` to Vercel.
