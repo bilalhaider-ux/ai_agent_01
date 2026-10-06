@@ -42,16 +42,21 @@ class TestApi(unittest.TestCase):
         result = client.get(f"/api/v1/analyses/{queued['analysis_id']}").json()
         self.assertEqual(result["status"], "completed")
         self.assertTrue(result["charts"])
-        self.assertEqual(result["grounding"]["status"], "verified_metrics_only")
-        self.assertEqual(result["grounding"]["authoritative_metrics"], result["metrics"])
-        self.assertEqual(result["grounding"]["decision_status"], "pending_human_review")
-        self.assertIn("dataset_sha256", result["grounding"]["provenance"])
-        self.assertEqual(result["grounding"]["drift_monitoring"], "baseline_not_available")
-        self.assertTrue(result["grounding"]["reproducibility"]["generated_code_sha256"])
-        self.assertTrue(result["generated_code"])
-        self.assertIn("# Analytical Decision Report", result["markdown_report"])
-        self.assertIn("## Machine-Verified Evidence", result["markdown_report"])
-        self.assertIn("overall_return_rate_pct", result["markdown_report"])
+        self.assertEqual(result["grounding"]["status"], "eda_only")
+        self.assertEqual(
+            result["grounding"]["summary_type"],
+            "non_graphical_and_visual_exploratory_data_analysis",
+        )
+        eda = result["metrics"]["exploratory_data_analysis"]
+        self.assertIn("correlation_matrix_pearson", eda)
+        self.assertIn("quality_flags", eda)
+        self.assertTrue(any("Box plot" in item for item in result["grounding"].get("visualization_types", [])) or result["charts"])
+        self.assertEqual(result["generated_code"], "")
+        self.assertIn("# Exploratory Data Analysis Report", result["markdown_report"])
+        self.assertIn("## Non-Graphical Statistical Summaries", result["markdown_report"])
+        self.assertIn("## Data Visualizations", result["markdown_report"])
+        self.assertIn("## Suggestion by DataSnap", result["markdown_report"])
+        self.assertIn("Suggestion by DataSnap", result["html_report"])
         self.assertIn("<img", result["html_report"])
         analysis_id = result["analysis_id"]
         self.assertEqual(client.get(f"/api/v1/reports/{analysis_id}/markdown").status_code, 200)

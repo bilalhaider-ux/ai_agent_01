@@ -153,7 +153,7 @@ The backend is configured for Heroku through the root `Procfile`. The frontend i
 
 - Browser-saved reports disappear when the user clears site data or changes device/browser.
 - The backend report store is process memory only and is not a durable server archive.
-- Generated code runs in a timed subprocess, not a hardened multi-tenant container boundary.
+- Generated code runs in a timed subprocess with import/call allowlisting, reduced environment exposure, and resource limits; it is still not a hardened multi-tenant container boundary.
 - Statistical significance and correlation do not establish causation. Reports remain pending human review.
 - The frontend currently provides HTML and Markdown downloads; an XLSX export requires a separate backend export endpoint.
 

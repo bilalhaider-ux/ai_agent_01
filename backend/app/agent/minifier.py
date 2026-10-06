@@ -74,4 +74,3 @@ def minify_dataset(file_path: Union[str, Path], sample_size: int = 5) -> Dataset
         summary_stats_markdown=summary_stats_markdown,
         duplicate_row_count=duplicate_row_count,
     )
-

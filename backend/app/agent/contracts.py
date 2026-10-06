@@ -61,4 +61,3 @@ class OutputSynthesis(BaseModel):
     answers_to_query: str = Field(description="Direct answers answering the user query")
     recommended_actions: List[str] = Field(description="Actionable business or analytical recommendations")
     full_markdown_report: str = Field(description="Formatted decision-ready markdown artifact")
-

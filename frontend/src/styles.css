@@ -148,6 +148,65 @@
   .studio-progress-fill { animation: none !important; }
 }
 
+.data-pulse {
+  margin-top: 18px;
+  overflow: hidden;
+  border: 1px solid var(--accent-line);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(145deg, var(--accent-soft), var(--panel));
+}
+.data-pulse-head, .data-pulse-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 13px 15px;
+}
+.data-pulse-head { border-bottom: 1px solid var(--accent-line); }
+.data-pulse-head strong { display: block; margin-top: 3px; font-size: 13px; font-weight: 650; color: var(--text); }
+.data-pulse-kicker, .data-pulse-count, .data-pulse-foot {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.data-pulse-count { white-space: nowrap; }
+.data-pulse-visual {
+  position: relative;
+  height: 116px;
+  overflow: hidden;
+  padding: 20px 15px 22px;
+}
+.data-pulse-grid {
+  position: absolute;
+  inset: 0;
+  opacity: .55;
+  background-image: linear-gradient(var(--accent-line) 1px, transparent 1px), linear-gradient(90deg, var(--accent-line) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+.data-pulse-scanline {
+  position: absolute;
+  z-index: 2;
+  inset: 0 auto 0 18%;
+  width: 2px;
+  background: linear-gradient(transparent, var(--accent), transparent);
+  box-shadow: 0 0 16px var(--accent);
+  animation: dataScan 2.6s ease-in-out infinite;
+}
+@keyframes dataScan { 0%,100% { transform: translateX(0); opacity: .2; } 50% { transform: translateX(340px); opacity: .9; } }
+.data-pulse-bars { position: relative; z-index: 1; display: flex; align-items: end; justify-content: space-between; height: 100%; }
+.data-pulse-bars i { display: block; width: 5px; min-height: 8px; border-radius: 4px 4px 1px 1px; transform-origin: bottom; background: linear-gradient(180deg, var(--accent-hot), var(--accent)); box-shadow: 0 0 9px var(--accent-glow); }
+.data-pulse-labels { position: absolute; z-index: 3; inset: auto 15px 5px; display: flex; justify-content: space-between; font: 8px var(--font-mono); letter-spacing: .1em; color: var(--text-faint); }
+.data-pulse-foot { padding-top: 9px; padding-bottom: 10px; border-top: 1px solid var(--accent-line); color: var(--text-dim); letter-spacing: .04em; text-transform: none; }
+.data-pulse-foot .font-mono { font-size: 8px; color: var(--text-faint); }
+.pulse-dot { display: inline-block; width: 6px; height: 6px; margin-right: 6px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 4px var(--ok-soft); animation: pulseDot 1.5s ease-in-out infinite; }
+@keyframes pulseDot { 50% { opacity: .45; transform: scale(.75); } }
+@media (prefers-reduced-motion: reduce) {
+  .data-pulse-scanline, .pulse-dot { animation: none !important; }
+  .data-pulse-bars i { animation: none !important; }
+}
+
 /* Respect reduced-motion preferences — kill all ambient looping animation */
 @media (prefers-reduced-motion: reduce) {
   .cine-grid, .cine-gradient-text, .cine-shimmer, .cine-glow, .cine-aurora, .text-shimmer,

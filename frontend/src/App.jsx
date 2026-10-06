@@ -7,42 +7,42 @@ import { listReports, removeReport, saveReport } from './lib/storage'
 import LightTunnel from './LightTunnel'
 
 const API_URL = import.meta.env.VITE_AGENT_API_URL || 'http://127.0.0.1:8000'
-const DEFAULT_QUERY = 'Analyze revenue by product category and identify return risks'
-const STEPS = ['Profile dataset', 'Build analytical plan', 'Generate code', 'Run isolated analysis', 'Synthesize decision brief']
+const DEFAULT_QUERY = 'Run a comprehensive exploratory data analysis with statistical summaries and visualizations'
+const STEPS = ['Read dataset', 'Profile data quality', 'Compute statistics', 'Build visualizations', 'Prepare EDA report']
 
 const MARQUEE = [
   { icon: Database, label: 'Polars profiling' },
-  { icon: BrainCircuit, label: 'LangGraph planning' },
-  { icon: Terminal, label: 'Isolated execution' },
-  { icon: LineChart, label: 'Matplotlib visuals' },
-  { icon: Gauge, label: 'SciPy statistics' },
-  { icon: ShieldCheck, label: 'Verified metrics' },
-  { icon: FileText, label: 'Decision reports' },
-  { icon: Zap, label: 'Gemini + fallback' },
+  { icon: BrainCircuit, label: 'EDA workflow' },
+  { icon: Terminal, label: 'Safe computation' },
+  { icon: LineChart, label: 'Distribution charts' },
+  { icon: Gauge, label: 'Statistical summaries' },
+  { icon: ShieldCheck, label: 'Reproducible results' },
+  { icon: FileText, label: 'HTML & Markdown reports' },
+  { icon: Zap, label: 'Dataset agnostic' },
   { icon: Table2, label: 'CSV · XLSX · Parquet' },
   { icon: Lock, label: 'Private by default' }
 ]
 
 const FEATURES = [
   { icon: FileSearch, title: 'Automatic data profiling', body: 'Schema, types, nulls, duplicates, distributions and summary statistics are extracted the moment your file lands.' },
-  { icon: BrainCircuit, title: 'Reasoned analysis plans', body: 'A LangGraph workflow minifies context, forms intent, and chooses the right statistical approach before any code runs.' },
-  { icon: Terminal, title: 'Isolated code execution', body: 'Generated Polars, SciPy and Matplotlib code runs in a timed subprocess that self-corrects runtime failures.' },
-  { icon: ShieldCheck, title: 'Machine-verified metrics', body: 'Every number in your brief is computed from your data and JSON-serialized, never hallucinated by the model.' },
-  { icon: LineChart, title: 'Visual evidence', body: 'Charts are rendered from the real analysis so you can see the trend behind every recommendation.' },
-  { icon: Download, title: 'Portable reports', body: 'Export professional HTML and Markdown, or keep reports in a private browser archive — no account required.' }
+  { icon: BrainCircuit, title: 'Comprehensive EDA', body: 'Profile structure, missingness, duplicates, distributions, outliers, cardinality and relationships in one consistent workflow.' },
+  { icon: Terminal, title: 'Deterministic computation', body: 'Polars and SciPy calculate the results from your uploaded dataset without generated analytical code.' },
+  { icon: ShieldCheck, title: 'Traceable results', body: 'Every reported metric comes from the current dataset, with quality flags and reproducible report output.' },
+  { icon: LineChart, title: 'Data visualizations', body: 'Explore histograms, box plots, category frequencies and numeric relationships rendered from the actual rows.' },
+  { icon: Download, title: 'Portable EDA reports', body: 'Export a polished HTML or Markdown report, or keep it in your private browser archive.' }
 ]
 
 const HOW = [
   { icon: UploadCloud, kicker: 'STEP 01', title: 'Upload your dataset', body: 'Drag in a CSV, XLSX, Parquet, TSV, JSON or JSONL file. DataSnap profiles it instantly — no schema setup.' },
-  { icon: FileText, kicker: 'STEP 02', title: 'Ask your question', body: 'Describe the decision in plain language. Be specific about the outcome you need and the context that matters.' },
-  { icon: Workflow, kicker: 'STEP 03', title: 'Let the agent work', body: 'The workflow plans, writes code, executes in isolation, and self-corrects — all while you watch the live progress.' },
-  { icon: Activity, kicker: 'STEP 04', title: 'Review the decision brief', body: 'Get an executive summary, direct answer, verified metrics, charts and recommended actions. Save or export in a click.' }
+  { icon: FileText, kicker: 'STEP 02', title: 'Choose an EDA focus', body: 'Keep the default comprehensive analysis or describe the columns and relationships you want to inspect.' },
+  { icon: Workflow, kicker: 'STEP 03', title: 'Watch the data scan', body: 'Follow live stages as the workspace profiles, computes, visualizes and packages your dataset.' },
+  { icon: Activity, kicker: 'STEP 04', title: 'Review the EDA report', body: 'Inspect statistical summaries, quality flags, visualizations and DataSnap next-step guidance.' }
 ]
 
 const STATS = [
   { value: '6+', label: 'File formats supported' },
-  { value: '5', label: 'Workflow stages per run' },
-  { value: '100%', label: 'Metrics computed, not guessed' },
+  { value: '5', label: 'EDA stages per run' },
+  { value: '100%', label: 'Metrics computed from data' },
   { value: '0', label: 'Accounts required' }
 ]
 
@@ -52,25 +52,25 @@ const PRICING_PLANS = [
     name: 'Starter',
     monthly: 0,
     yearly: 0,
-    blurb: 'For individuals exploring what automated analysis can do.',
+    blurb: 'For individuals exploring their data.',
     cta: 'Get started',
     popular: false,
-    features: ['5 analyses per hour', 'All 6+ file formats', 'Isolated code execution', 'Verified metrics & charts', 'Markdown & HTML export']
+    features: ['5 EDA runs per hour', 'All 6+ file formats', 'Deterministic computation', 'Statistics & visualizations', 'Markdown & HTML export']
   },
   {
     name: 'Pro',
     monthly: 2900,
     yearly: 2320,
-    blurb: 'For analysts who need more runs and deeper evidence.',
+    blurb: 'For analysts who need more runs and richer EDA work.',
     cta: 'Upgrade to Pro',
     popular: true,
-    features: ['Unlimited analyses', 'Priority Gemini throughput', 'Extended execution timeout', 'Larger upload limits', 'Priority support']
+    features: ['Unlimited EDA runs', 'Priority processing', 'Extended execution timeout', 'Larger upload limits', 'Priority support']
   },
   {
     name: 'Teams',
     monthly: 5900,
     yearly: 4720,
-    blurb: 'For teams that need shared, scalable decision intelligence.',
+    blurb: 'For teams that need shared, scalable data understanding.',
     cta: 'Contact sales',
     popular: false,
     features: ['Everything in Pro', 'Up to 15 members', 'Shared report library', 'Role-based access', 'Dedicated support']
@@ -79,7 +79,7 @@ const PRICING_PLANS = [
 const pkr = (n) => n === 0 ? 'PKR 0' : `PKR ${n.toLocaleString('en-PK')}`
 
 
-/* ---- Grounded preview data (sample_sales_data.csv, exactly what the agent computes) ---- */
+/* ---- Grounded preview data (sample_sales_data.csv, exactly what DataSnap computes) ---- */
 // Total Revenue by Product Category (Polars group_by, sorted desc)
 const PREVIEW_CATEGORIES = [
   { label: 'Electronics', value: 9801.59 },
@@ -346,7 +346,7 @@ export default function App() {
 
   async function runAnalysis() {
     if (!file) return setError('Choose a dataset before continuing.')
-    if (!query.trim()) return setError('Add a business question before continuing.')
+    if (!query.trim()) return setError('Add an optional EDA focus or use the comprehensive default.')
     setRunning(true); setError(''); setStep(0)
     const payload = new FormData(); payload.append('query', query.trim()); payload.append('dataset', file); payload.append('provider', 'gemini')
     const timer = setInterval(() => setStep(current => Math.min(current + 1, STEPS.length - 1)), 1500)
@@ -460,7 +460,7 @@ const LEGAL_PRIVACY = {
   title: 'Privacy Policy',
   intro: 'DataSnap is built to be private by default. This policy explains what data is processed when you run an analysis, how long it lives, and the third parties involved.',
   sections: [
-    { h: 'Data you provide', p: 'When you run an analysis you upload a dataset file (CSV, XLSX, Parquet, TSV, JSON or JSONL) and a business question. These are sent to our API over an encrypted connection solely to produce your decision brief.' },
+    { h: 'Data you provide', p: 'When you run an analysis you upload a dataset file (CSV, XLSX, Parquet, TSV, JSON or JSONL) and an optional EDA focus. These are sent to our API over an encrypted connection solely to produce your exploratory data analysis report.' },
     { h: 'How your dataset is used', p: 'Your dataset is profiled and analyzed inside a timed, isolated subprocess. It is processed in memory to compute metrics and generate charts. We do not use your uploaded data to train models, and it is not retained as a durable server-side archive.' },
     { h: 'Saved reports stay in your browser', p: 'Reports are only stored when you explicitly save them, and they are kept locally in your browser using IndexedDB (with a localStorage fallback). They never leave your device unless you export them. Clearing site data or switching browser/device removes them.' },
     { h: 'Third-party AI provider', p: 'To plan and synthesize analyses, relevant context is sent to our AI provider (Google Gemini) with an automatic fallback chain for transient failures. Their processing is governed by their own terms and privacy practices.' },
@@ -675,7 +675,7 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate, theme }) {
           onClick={onStart} variants={rise}
         >
           <b className="rounded-full bg-brand-soft px-2.5 py-0.5 font-mono text-[10px] font-semibold uppercase tracking-wide text-brand">New</b>
-          Agent workflows are now available
+          Professional EDA workspace
           <ArrowUpRight size={14} className="text-ink-dim transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </motion.button>
 
@@ -686,8 +686,8 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate, theme }) {
         </motion.h1>
 
         <motion.p className="mt-4 max-w-[42ch] text-[clamp(14px,1.3vw,16px)] leading-relaxed text-ink-soft" variants={rise}>
-          An all-in-one agent that profiles, analyzes and verifies
-          <br className="hidden sm:block" /> your data into a decision-ready brief.
+          A focused data workspace that profiles and explains
+          <br className="hidden sm:block" /> your data into a clear EDA report.
         </motion.p>
 
         <motion.div className="mt-6 flex flex-row flex-wrap items-center justify-center gap-2.5 sm:gap-3" variants={rise}>
@@ -696,8 +696,8 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate, theme }) {
         </motion.div>
 
         <motion.div className="mt-7 flex flex-wrap items-center justify-center gap-x-7 gap-y-3 text-xs text-ink-dim" variants={rise}>
-          <span className="flex items-center gap-2"><ShieldCheck size={15} className="text-brand" /> Isolated execution</span>
-          <span className="flex items-center gap-2"><Check size={15} className="text-brand" /> Machine-verified metrics</span>
+          <span className="flex items-center gap-2"><ShieldCheck size={15} className="text-brand" /> Computed from your rows</span>
+          <span className="flex items-center gap-2"><Check size={15} className="text-brand" /> Raw data stays unchanged</span>
           <span className="flex items-center gap-2"><Lock size={15} className="text-brand" /> No account required</span>
         </motion.div>
       </section>
@@ -709,7 +709,7 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate, theme }) {
           initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true, amount: 0.4 }} transition={{ duration: 0.5, ease: easeOut }}
         >
           <p className="eyebrow justify-center"><span /> LIVE PREVIEW</p>
-          <h2 className="mt-4 font-display text-[clamp(26px,3.2vw,40px)] font-medium leading-[1.08] tracking-[-0.035em] text-ink">A decision brief, rendered from your rows.</h2>
+          <h2 className="mt-4 font-display text-[clamp(26px,3.2vw,40px)] font-medium leading-[1.08] tracking-[-0.035em] text-ink">A professional EDA report, rendered from your rows.</h2>
           <p className="mx-auto mt-3 max-w-[480px] text-[15.5px] leading-relaxed text-ink-soft">One clear view — the signal your data was hiding, computed and verified.</p>
         </motion.div>
 
@@ -792,7 +792,7 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate, theme }) {
       <section className="section features" id="features">
         <motion.div className="section-head center" {...fadeUpView}>
           <p className="eyebrow"><span /> WHAT'S INSIDE</p>
-          <h2>Everything you need to turn a dataset into a decision.</h2>
+          <h2>Everything you need to understand a dataset.</h2>
           <p className="section-lead">DataSnap handles the full path — profiling, planning, execution and synthesis — so you can focus on the call you need to make.</p>
         </motion.div>
         <motion.div className="feature-grid" variants={staggerParent} initial="initial" whileInView="whileInView" viewport={{ once: true, amount: 0.2 }}>
@@ -809,7 +809,7 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate, theme }) {
       <section className="section how">
         <motion.div className="section-head center" {...fadeUpView}>
           <p className="eyebrow"><span /> HOW IT WORKS</p>
-          <h2>From raw file to decision brief in four steps.</h2>
+          <h2>From raw file to a complete EDA report in four steps.</h2>
           <p className="section-lead">A guided, transparent flow. You stay in control at every stage while the agent does the heavy lifting.</p>
         </motion.div>
         <motion.div className="how-steps" variants={staggerParent} initial="initial" whileInView="whileInView" viewport={{ once: true, amount: 0.2 }}>
@@ -841,7 +841,7 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate, theme }) {
           <div className="cta-glow" aria-hidden />
           <p className="eyebrow"><span /> READY WHEN YOU ARE</p>
           <h2>Ask your data a better question.</h2>
-          <p>Upload a dataset and get a decision-ready brief in minutes. No account, no setup, private by default.</p>
+          <p>Upload a dataset and get statistical summaries, visualizations and quality guidance. No account, no setup, private by default.</p>
           <div className="hero-actions">
             <motion.button className="primary-cta" onClick={onStart} whileTap={{ scale: 0.98 }}>Start an analysis <ArrowUpRight size={17} /></motion.button>
             <motion.button className="ghost-cta" onClick={onReports} whileTap={{ scale: 0.98 }}>View saved reports <ChevronRight size={15} /></motion.button>
@@ -852,7 +852,7 @@ function Landing({ onStart, onReports, onLearnMore, onNavigate, theme }) {
       <motion.footer className="site-footer" variants={staggerParent} initial="initial" whileInView="whileInView" viewport={{ once: true, amount: 0.2 }}>
         <motion.div className="footer-brand" variants={revealItem}>
           <Logo />
-          <p>Decision intelligence that turns a question and a dataset into verified, decision-ready evidence.</p>
+          <p>A focused data workspace that turns an uploaded dataset into a comprehensive exploratory analysis.</p>
         </motion.div>
         <motion.div className="footer-links" variants={revealItem}>
           <div><h4>Product</h4><button onClick={onStart}>Start analysis</button><button onClick={onReports}>Saved reports</button></div>
@@ -909,18 +909,45 @@ TXN-1029,2024-03-25,CUST-229,Europe,Home & Kitchen,2,180.00,0.15,306.00,12.50,Pa
 TXN-1030,2024-03-29,CUST-230,North America,Electronics,5,400.00,0.20,1600.00,24.00,Credit Card,4.9,No`
 
 const PIPELINE_STAGES = [
-  { id: 'profile', title: 'Dataset Profiling', detail: 'Schema validation, null checks & Polars type mapping' },
-  { id: 'plan', title: 'Analytical Planning', detail: 'Statistical hypothesis formulation & method selection' },
-  { id: 'code', title: 'Code Generation', detail: 'Vectorized Polars & SciPy numerical computation script' },
-  { id: 'execute', title: 'Sandboxed Execution', detail: 'Isolated subprocess execution, plot generation & AST validation' },
-  { id: 'synthesize', title: 'Evidence Synthesis', detail: 'Machine-verified metrics grounding & executive brief' }
+  { id: 'profile', title: 'Reading the dataset', detail: 'Loading rows, columns and detected data types' },
+  { id: 'quality', title: 'Checking data quality', detail: 'Missing values, duplicates, cardinality and outliers' },
+  { id: 'stats', title: 'Computing statistics', detail: 'Distributions, skewness, kurtosis and correlations' },
+  { id: 'visualize', title: 'Rendering visualizations', detail: 'Histograms, box plots, frequencies and relationships' },
+  { id: 'report', title: 'Preparing your EDA report', detail: 'Packaging summaries, charts and next-step guidance' }
 ]
 
 const QUICK_PROMPTS = [
-  { label: 'Category revenue & return risk', text: 'Analyze revenue by product category and identify return risks' },
-  { label: 'Rating vs revenue correlation', text: 'Compute Pearson correlation between customer ratings and total order revenue' },
-  { label: 'Discount impact on returns', text: 'Evaluate whether higher discount percentages correlate with higher return rates' }
+  { label: 'Full dataset profile', text: DEFAULT_QUERY },
+  { label: 'Compare numeric columns', text: 'Explore relationships, correlations and distributions across the numeric columns' },
+  { label: 'Audit data quality', text: 'Profile missing values, duplicates, cardinality and potential outliers' }
 ]
+
+function DataPulse({ step, running }) {
+  const columns = Array.from({ length: 34 }, (_, index) => ({
+    height: 18 + ((index * 19) % 58),
+    delay: (index % 9) * 0.09
+  }))
+  return (
+    <AnimatePresence>
+      {running && (
+        <motion.div className="data-pulse" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}>
+          <div className="data-pulse-head">
+            <div><span className="data-pulse-kicker">LIVE DATA SCAN</span><strong>{STEPS[step] || 'Preparing EDA report'}</strong></div>
+            <span className="data-pulse-count">{String(step + 1).padStart(2, '0')} / {String(STEPS.length).padStart(2, '0')}</span>
+          </div>
+          <div className="data-pulse-visual" aria-hidden="true">
+            <div className="data-pulse-grid" /><div className="data-pulse-scanline" />
+            <div className="data-pulse-bars">{columns.map((column, index) => (
+              <motion.i key={index} style={{ height: `${column.height}%` }} animate={{ scaleY: [0.55, 1, 0.7, 0.9], opacity: [0.35, 1, 0.55, 0.8] }} transition={{ duration: 1.7, delay: column.delay, repeat: Infinity, ease: 'easeInOut' }} />
+            ))}</div>
+            <div className="data-pulse-labels"><span>ROWS</span><span>FIELDS</span><span>QUALITY</span><span>SHAPE</span></div>
+          </div>
+          <div className="data-pulse-foot"><span><i className="pulse-dot" /> Computing from uploaded data</span><span className="font-mono">POLARS · SCIPY · MATPLOTLIB</span></div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
 
 function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, onReports }) {
   const [fileMeta, setFileMeta] = useState(null)
@@ -963,7 +990,7 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
     const blob = new Blob([SAMPLE_SALES_CSV], { type: 'text/csv' })
     const sampleFile = new File([blob], 'sample_sales_data.csv', { type: 'text/csv' })
     setFile(sampleFile)
-    setQuery('Analyze revenue by product category and identify return risks')
+    setQuery(DEFAULT_QUERY)
   }
 
   function handleKeyDown(e) {
@@ -984,10 +1011,10 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
             <span className="font-mono text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">Analysis Studio</span>
           </div>
           <h1 className="mt-2 font-display text-[clamp(26px,3.2vw,36px)] font-medium tracking-[-0.03em] text-ink">
-            Formulate hypothesis & dataset
+            Explore a dataset
           </h1>
           <p className="mt-1 text-[14.5px] text-ink-soft">
-            Upload raw rows, state your analytical objective, and execute inside an isolated Polars & SciPy runtime.
+            Upload a dataset and receive a comprehensive exploratory data analysis report.
           </p>
         </div>
         <button className="studio-reports-btn" onClick={onReports}>
@@ -1093,7 +1120,7 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
                       <input type="file" accept=".csv,.xlsx,.parquet,.tsv,.json,.jsonl" onChange={handleChooseFile} />
                     </label>
                     <button type="button" className="studio-sample-btn" onClick={handleLoadSample}>
-                      Load sample dataset (Retail 30 rows)
+                      Preview with sample dataset
                     </button>
                   </div>
                 </div>
@@ -1101,14 +1128,14 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
             )}
           </MSection>
 
-          {/* Section 2: Analytical Objective */}
+          {/* Section 2: EDA focus */}
           <MSection className="studio-card" variants={rise}>
             <div className="studio-card-head">
               <div className="flex items-center gap-2.5">
                 <span className="studio-card-icon"><Terminal size={16} /></span>
                 <div>
-                  <strong className="block text-[14.5px] font-semibold text-ink">Analytical Objective</strong>
-                  <span className="text-[12px] text-ink-dim">State the decision question or hypothesis to test</span>
+                  <strong className="block text-[14.5px] font-semibold text-ink">EDA focus</strong>
+                  <span className="text-[12px] text-ink-dim">Optional context for the exploratory analysis</span>
                 </div>
               </div>
               <span className="font-mono text-[11px] text-ink-dim">{query.length} / 500</span>
@@ -1116,7 +1143,7 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
 
             {/* Quick prompt suggestions */}
             <div className="prompt-suggestions">
-              <span className="text-[11.5px] font-medium text-ink-dim">Suggested hypotheses:</span>
+              <span className="text-[11.5px] font-medium text-ink-dim">Start with:</span>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {QUICK_PROMPTS.map((p) => (
                   <button
@@ -1139,7 +1166,7 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="e.g. Analyze revenue by product category, compare return rates, and test if customer rating correlates with sales volume."
+                placeholder="e.g. Run a comprehensive exploratory data analysis with statistical summaries and visualizations."
                 maxLength={500}
                 disabled={running}
               />
@@ -1150,10 +1177,10 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px] text-ink-dim">
                 <span className="flex items-center gap-1.5 font-mono text-[11px]">
                   <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                  Python 3.11 · Polars
+                  Polars data engine
                 </span>
-                <span className="hidden font-mono text-[11px] sm:inline">SciPy Stats</span>
-                <span className="hidden font-mono text-[11px] sm:inline">Gemini 2.5 Flash</span>
+                <span className="hidden font-mono text-[11px] sm:inline">SciPy statistics</span>
+                <span className="hidden font-mono text-[11px] sm:inline">No generated code</span>
               </div>
 
               <motion.button
@@ -1166,17 +1193,19 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
                 {running ? (
                   <>
                     <LoaderCircle className="spin" size={15} />
-                    <span>Executing pipeline…</span>
+                    <span>Scanning dataset…</span>
                   </>
                 ) : (
                   <>
                     <Play size={14} fill="currentColor" />
-                    <span>Run Analysis</span>
+                    <span>Run EDA</span>
                     <kbd className="hidden sm:inline-block">⌘↵</kbd>
                   </>
                 )}
               </motion.button>
             </div>
+
+            <DataPulse step={step} running={running} />
 
             {/* Error Line */}
             <AnimatePresence>
@@ -1202,8 +1231,8 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
           <motion.aside className="studio-card" variants={rise}>
             <div className="studio-card-head">
               <div>
-                <strong className="block text-[14.5px] font-semibold text-ink">Execution Pipeline</strong>
-                <span className="text-[12px] text-ink-dim">Real-time analytical workflow stages</span>
+                <strong className="block text-[14.5px] font-semibold text-ink">EDA progress</strong>
+                <span className="text-[12px] text-ink-dim">Live status of your dataset analysis</span>
               </div>
               <span className={`studio-status-pill ${running ? 'live' : 'idle'}`}>
                 {running ? `STAGE ${step + 1} OF 5` : 'IDLE'}
@@ -1269,8 +1298,8 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
           <motion.aside className="studio-card" variants={rise}>
             <div className="studio-card-head">
               <div>
-                <strong className="block text-[14.5px] font-semibold text-ink">Execution Guarantees</strong>
-                <span className="text-[12px] text-ink-dim">Architecture standards enforced on every run</span>
+                <strong className="block text-[14.5px] font-semibold text-ink">Analysis standards</strong>
+                <span className="text-[12px] text-ink-dim">What DataSnap preserves on every run</span>
               </div>
             </div>
 
@@ -1278,22 +1307,22 @@ function Analyze({ file, setFile, query, setQuery, running, step, error, onRun, 
               <div className="flex gap-3">
                 <ShieldCheck size={16} className="mt-0.5 flex-none text-brand" />
                 <div>
-                  <strong className="block text-[12.5px] font-medium text-ink">Machine-Verified Numbers</strong>
-                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-dim">Every statistic is computed in Python and verified against source arrays — never generated by LLM imagination.</p>
+                  <strong className="block text-[12.5px] font-medium text-ink">Computed from your rows</strong>
+                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-dim">Summaries and charts are calculated from the uploaded dataset, not invented by a language model.</p>
                 </div>
               </div>
               <div className="flex gap-3">
                 <Lock size={16} className="mt-0.5 flex-none text-brand" />
                 <div>
-                  <strong className="block text-[12.5px] font-medium text-ink">Isolated Ephemeral Process</strong>
-                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-dim">Scripts execute in a scoped sandbox subprocess. Uploaded data is not retained for training.</p>
+                  <strong className="block text-[12.5px] font-medium text-ink">Raw data stays unchanged</strong>
+                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-dim">EDA reports quality issues and cleaning considerations without silently rewriting the uploaded file.</p>
                 </div>
               </div>
               <div className="flex gap-3">
                 <Workflow size={16} className="mt-0.5 flex-none text-brand" />
                 <div>
-                  <strong className="block text-[12.5px] font-medium text-ink">Automated Recovery Loops</strong>
-                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-dim">Code syntax errors or runtime exceptions trigger automatic repair nodes before returning results.</p>
+                  <strong className="block text-[12.5px] font-medium text-ink">Ready for next steps</strong>
+                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-ink-dim">The report ends with DataSnap guidance for cleaning and a separate predictive-analysis phase.</p>
                 </div>
               </div>
             </div>
@@ -1328,7 +1357,7 @@ function Reports({ reports, onOpen, onDelete, onNew }) {
             <motion.article className="report-row" key={item.analysis_id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }}>
               <button onClick={() => onOpen(item)}>
                 <span className="report-mark"><BarChart3 size={18} /></span>
-                <span><strong>{item.answers_to_query?.slice(0, 85) || 'Decision brief'}</strong><small>{dateLabel(item.saved_at)} · {item.grounding?.data_quality?.row_count || 0} rows analyzed</small></span>
+                <span><strong>{item.answers_to_query?.slice(0, 85) || 'Exploratory data analysis'}</strong><small>{dateLabel(item.saved_at)} · {item.grounding?.data_quality?.row_count || 0} rows analyzed</small></span>
               </button>
               <span className="report-status"><Check size={13} /> Saved</span>
               <button className="delete-button" onClick={() => onDelete(item.analysis_id)} aria-label="Delete report"><X size={16} /></button>
@@ -1350,7 +1379,7 @@ function ReportPage({ report, saved, onSave, onBack, download }) {
   )
   const metrics = report.metrics || {}
   const metricRows = Object.entries(metrics)
-  const tabs = [['overview', 'Overview'], ['insights', 'Insights & actions'], ['visuals', 'Visual evidence'], ['metrics', 'Verified metrics'], ['details', 'Run details']]
+  const tabs = [['overview', 'Summary'], ['insights', 'Quality & next steps'], ['visuals', 'Visualizations'], ['metrics', 'Statistics'], ['details', 'Run details']]
   const tabFade = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: easeOut } }, exit: { opacity: 0, y: -8, transition: { duration: 0.2 } } }
   return (
     <MMain className="report-page" variants={pageMotion} initial="initial" animate="animate" exit="exit">
@@ -1366,24 +1395,24 @@ function ReportPage({ report, saved, onSave, onBack, download }) {
       <motion.div className="report-paper" variants={rise}>
         <div className="report-paper-head">
           <div>
-            <p className="eyebrow"><span /> ANALYTICAL DECISION REPORT</p>
-            <h1>Decision brief</h1>
-            <p>Evidence prepared from {report.grounding?.data_quality?.row_count || 0} rows of uploaded data.</p>
+            <p className="eyebrow"><span /> EXPLORATORY DATA ANALYSIS</p>
+            <h1>EDA report</h1>
+            <p>Prepared from {report.grounding?.data_quality?.row_count || 0} rows of uploaded data.</p>
           </div>
-          <span className="report-stamp"><ShieldCheck size={16} /> Machine verified</span>
+          <span className="report-stamp"><ShieldCheck size={16} /> Computed from data</span>
         </div>
         <div className="report-tabs">{tabs.map(([id, label]) => <button className={tab === id ? 'active' : ''} onClick={() => setTab(id)} key={id}>{label}</button>)}</div>
         <AnimatePresence mode="wait">
           <motion.div className="report-content" key={tab} variants={tabFade} initial="initial" animate="animate" exit="exit">
-            {tab === 'overview' && <><div className="report-lead"><span>EXECUTIVE SUMMARY</span><p>{report.executive_summary}</p></div><div className="report-answer"><span>ANSWER TO YOUR QUESTION</span><p>{report.answers_to_query}</p></div><div className="overview-cards">
-              {[['ROWS ANALYZED', report.grounding?.data_quality?.row_count || '—'], ['METRICS VERIFIED', report.grounding?.metric_count || metricRows.length], ['VISUALS GENERATED', report.charts?.length || 0]].map(([label, value], i) => (
+            {tab === 'overview' && <><div className="report-lead"><span>EDA SCOPE</span><p>{report.executive_summary || 'Comprehensive exploratory data analysis completed.'}</p></div><div className="report-answer"><span>DATA SNAPSHOT</span><p>Descriptive summaries and visualizations were generated from the uploaded rows. No automatic cleaning or predictive model was applied.</p></div><div className="overview-cards">
+              {[['ROWS ANALYZED', report.grounding?.data_quality?.row_count || '—'], ['STATISTICS PACKAGED', report.grounding?.metric_count || metricRows.length], ['VISUALS GENERATED', report.charts?.length || 0]].map(([label, value], i) => (
                 <motion.div key={label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 + i * 0.08 }}><small>{label}</small><strong>{value}</strong></motion.div>
               ))}
             </div></>}
-            {tab === 'insights' && <div className="report-columns full"><section><p className="section-label">STATISTICAL INSIGHTS</p><h2>What the data says</h2><ul>{(report.statistical_insights || []).map(item => <li key={item}>{item}</li>)}</ul></section><section><p className="section-label">RECOMMENDED ACTIONS</p><h2>What to do next</h2><ul>{(report.recommended_actions || []).map(item => <li key={item}>{item}</li>)}</ul></section></div>}
+            {tab === 'insights' && <div className="report-columns full"><section><p className="section-label">DATA QUALITY</p><h2>What to review</h2><ul><li>Missing values: {JSON.stringify(report.metrics?.exploratory_data_analysis?.missing_counts || {})}</li><li>Duplicate rows: {report.metrics?.exploratory_data_analysis?.duplicate_row_count ?? '—'}</li><li>Quality flags: {JSON.stringify(report.metrics?.exploratory_data_analysis?.quality_flags || [])}</li></ul></section><section><p className="section-label">SUGGESTION BY DATASNAP</p><h2>Before predictive work</h2><ul>{(report.recommended_actions || ['Review quality flags and define documented cleaning rules before modeling.', 'Choose and validate a target variable in a separate predictive-analysis phase.']).map(item => <li key={item}>{item}</li>)}</ul></section></div>}
             {tab === 'visuals' && <div className="visual-report-grid">{(report.charts || []).map((chart, index) => <motion.figure key={`${index}-${chart.slice(0, 20)}`} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.08 }}><img src={`data:image/png;base64,${chart}`} alt={`Analysis visualization ${index + 1}`} /><figcaption>Visualization {String(index + 1).padStart(2, '0')}</figcaption></motion.figure>)}</div>}
             {tab === 'metrics' && <div className="metrics-reader">{metricRows.map(([key, value]) => <section key={key}><div className="metric-heading"><span>{key.replaceAll('_', ' ')}</span><em>verified</em></div>{Array.isArray(value) && value.length && typeof value[0] === 'object' ? <div className="metric-table-wrap"><table><thead><tr>{Object.keys(value[0]).map(column => <th key={column}>{column.replaceAll('_', ' ')}</th>)}</tr></thead><tbody>{value.map((row, index) => <tr key={index}>{Object.values(row).map((cell, cellIndex) => <td key={cellIndex}>{typeof cell === 'number' ? Number(cell.toFixed(4)) : String(cell)}</td>)}</tr>)}</tbody></table></div> : <strong className="metric-number">{typeof value === 'number' ? Number(value.toFixed(6)) : JSON.stringify(value)}</strong>}</section>)}</div>}
-            {tab === 'details' && <div className="details-reader"><div><small>ANALYSIS ID</small><code>{report.analysis_id}</code></div><div><small>PROVIDER</small><strong>{report.grounding?.provenance?.provider || 'Gemini'}</strong></div><div><small>MODEL</small><strong>{report.grounding?.provenance?.model || 'Primary with automatic fallback'}</strong></div><div><small>DATA QUALITY</small><strong>{report.grounding?.data_quality?.status || 'Reviewed'}</strong></div><div><small>DECISION STATUS</small><strong>Pending human review</strong></div></div>}
+            {tab === 'details' && <div className="details-reader"><div><small>ANALYSIS ID</small><code>{report.analysis_id}</code></div><div><small>ENGINE</small><strong>Polars + SciPy</strong></div><div><small>VISUALS</small><strong>{report.charts?.length || 0} generated</strong></div><div><small>DATA QUALITY</small><strong>{report.grounding?.data_quality?.status || 'Reviewed'}</strong></div><div><small>WORKFLOW</small><strong>Deterministic EDA</strong></div></div>}
           </motion.div>
         </AnimatePresence>
       </motion.div>

@@ -58,66 +58,82 @@ def _chart_gallery(charts: list[str]) -> str:
     return f'<div class="chart-grid">{items}</div>'
 
 
-def _bullet_list(items: list[str] | None, empty: str) -> str:
-    if not items:
-        return f'<p class="muted">{_text(empty)}</p>'
-    return '<ul class="clean-list">' + ''.join(f'<li>{_text(item)}</li>' for item in items) + '</ul>'
+def _datasnap_suggestion(metrics: dict[str, Any]) -> list[str]:
+    """Build conservative next-step guidance from observed EDA artifacts."""
+    eda = metrics.get("exploratory_data_analysis", metrics)
+    non_graphical = eda.get("non_graphical", eda) if isinstance(eda, dict) else {}
+    suggestions = [
+        "Review the reported missing values, duplicate rows, and IQR outliers before modeling; apply domain-approved cleaning rules without overwriting the raw dataset.",
+    ]
+    missing = non_graphical.get("missing_counts", {})
+    if isinstance(missing, dict) and any(value for value in missing.values()):
+        suggestions.append(
+            "Define a missing-value strategy for affected columns, such as validated imputation, an explicit category, or excluding unusable records."
+        )
+    if non_graphical.get("duplicate_row_count", 0):
+        suggestions.append(
+            "Inspect duplicate rows and decide whether they represent repeated observations or records that should be removed."
+        )
+    outliers = non_graphical.get("outlier_counts_iqr", {})
+    if isinstance(outliers, dict) and any(value for value in outliers.values()):
+        suggestions.append(
+            "Investigate IQR-flagged numeric values and choose a documented treatment such as retaining, transforming, capping, or excluding them."
+        )
+    numeric = non_graphical.get("numeric_summary", {})
+    categorical = non_graphical.get("categorical_summary", {})
+    if numeric:
+        suggestions.append(
+            "For a future regression or forecasting task, select and validate a numeric target with domain context, then use the cleaned numeric and categorical columns as candidate features."
+        )
+    elif categorical:
+        suggestions.append(
+            "For a future classification task, select and validate a categorical target with domain context, then encode and assess the remaining columns as candidate features."
+        )
+    else:
+        suggestions.append(
+            "Select and validate a target variable with domain context before choosing a predictive modeling approach; this dataset currently has no detected numeric or categorical feature columns."
+        )
+    suggestions.append(
+        "This report is descriptive EDA only. Predictive modeling should be a separate step with train/test validation, leakage checks, and an appropriate evaluation metric."
+    )
+    return suggestions
 
 
 def markdown_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: list[str]) -> str:
+    eda = metrics.get('exploratory_data_analysis', metrics)
+    suggestions = _datasnap_suggestion(metrics)
     lines = [
-        '# Analytical Decision Report',
+        '# Exploratory Data Analysis Report',
         '',
-        '## Executive Summary',
-        synthesis.get('executive_summary', 'No executive summary was returned.'),
+        '## Scope',
+        'EDA is a comprehensive methodology that includes both non-graphical statistical summaries and data visualization techniques.',
         '',
-        '## Core Findings & Answers to Query',
-        synthesis.get('answers_to_query', 'No direct answer was returned.'),
+        '## Non-Graphical Statistical Summaries',
+        f"```json\n{json.dumps(eda, indent=2, default=str)}\n```",
         '',
-        '## Statistical Insights',
+        '## Data Visualizations',
     ]
-    lines.extend(f'- {item}' for item in synthesis.get('statistical_insights', []))
-    lines += ['', '## Recommended Actions']
-    lines.extend(f'- {item}' for item in synthesis.get('recommended_actions', []))
-    lines += ['', '## Machine-Verified Metrics']
-    lines.extend(f'- **{key}:** `{json.dumps(value, default=str) if isinstance(value, (dict, list)) else value}`' for key, value in metrics.items())
-    if charts:
-        lines += ['', '## Visual Evidence']
-        lines.extend(f'### Visualization {index}\n![Visualization {index}](data:image/png;base64,{chart})' for index, chart in enumerate(charts, 1))
-    lines += ['', '## Decision Safety Notes', '- Narrative findings and recommendations are advisory.', '- Correlation and statistical significance do not prove causation.', '- Missing values are not zero and unsupported claims remain unknown.']
+    lines.extend(f'### Visualization {index}\n![Visualization {index}](data:image/png;base64,{chart})' for index, chart in enumerate(charts, 1))
+    lines.extend([
+        '',
+        '## Suggestion by DataSnap',
+        'The following are conservative next steps based only on the observed EDA results:',
+        *[f'- {suggestion}' for suggestion in suggestions],
+    ])
     return '\n'.join(lines)
 
 
 def html_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: list[str]) -> str:
-    executive = _text(synthesis.get('executive_summary', 'No executive summary was returned.'))
-    answer = _text(synthesis.get('answers_to_query', 'No direct answer was returned.'))
-    insights = _bullet_list(synthesis.get('statistical_insights'), 'No statistical insights were returned.')
-    actions = _bullet_list(synthesis.get('recommended_actions'), 'No recommendations were returned.')
-    return f'''<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>DataSnap · Decision Report</title>
-<style>
-:root{{--ink:#11141c;--muted:#767c8b;--line:#e7eaf1;--soft:#f3f5f9;--brand:#4f46e5;--brand-hot:#7c3aed;--brand-soft:#eef0ff;--ok:#0f9d6b;--ok-soft:#e4f6ee}}
-*{{box-sizing:border-box}}body{{margin:0;background:#f7f8fb;color:var(--ink);font:15px/1.6 'Inter',system-ui,-apple-system,"Segoe UI",sans-serif}}.shell{{max-width:900px;margin:auto;padding:40px 24px 64px}}
-header{{padding-bottom:24px;border-bottom:1px solid var(--line);margin-bottom:8px}}.brand{{display:flex;align-items:center;gap:8px;font-weight:700;font-size:14px;letter-spacing:-.01em}}.brand .dot{{width:9px;height:9px;border-radius:3px;background:linear-gradient(135deg,var(--brand),var(--brand-hot))}}.eyebrow{{color:var(--brand);font-size:11px;font-weight:700;letter-spacing:.14em;margin-top:18px}}h1{{font-size:30px;margin:6px 0 8px;letter-spacing:-.02em;line-height:1.2}}h2{{font-size:18px;margin:0 0 14px;letter-spacing:-.01em}}h3{{font-size:13px;margin:0 0 10px;color:#4a4f5c}}.sub{{color:var(--muted);max-width:640px;margin:0}}
-.badge{{display:inline-block;background:var(--ok-soft);color:var(--ok);padding:5px 11px;border-radius:999px;font-size:12px;font-weight:600;margin-top:14px}}
-.section{{margin-top:28px}}.card{{background:#fff;border:1px solid var(--line);border-radius:12px;padding:22px}}.summary{{margin:0;line-height:1.65}}
-.answer{{margin-top:18px;background:var(--brand-soft);border:1px solid #c7cbff;border-radius:10px;padding:16px 18px}}.answer strong{{color:var(--brand);display:block;font-size:11px;letter-spacing:.1em;margin-bottom:6px}}.answer p{{margin:0}}
-.clean-list{{padding:0;margin:0;list-style:none;display:grid;gap:9px}}.clean-list li{{padding-left:18px;position:relative}}.clean-list li:before{{content:"";position:absolute;left:0;top:.65em;width:6px;height:6px;border-radius:50%;background:var(--brand)}}
-.metric-section{{margin-top:18px}}.metric-section:first-child{{margin-top:0}}.table-scroll{{overflow-x:auto}}table{{width:100%;border-collapse:collapse;font-size:13px}}th{{background:var(--soft);color:#4a4f5c;text-align:left;font-size:11px;letter-spacing:.03em;text-transform:uppercase}}th,td{{padding:9px 12px;border-bottom:1px solid var(--line);white-space:nowrap}}tr:last-child td{{border-bottom:0}}td{{color:#4a4f5c}}
-.chart-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}}.chart{{margin:0;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px}}.chart img{{display:block;width:100%;height:auto;border-radius:7px}}figcaption{{color:var(--muted);font-size:12px;padding:9px 2px 2px}}
-.json-block{{overflow:auto;background:var(--soft);border:1px solid var(--line);padding:14px;border-radius:9px;color:#4a4f5c;font:12px/1.5 'JetBrains Mono',ui-monospace,monospace}}.metric-value{{margin:0;font:600 22px 'JetBrains Mono',ui-monospace,monospace;color:var(--brand)}}.muted{{color:var(--muted)}}
-.safety{{background:#fff8ec;border:1px solid #f3e2bd;border-radius:10px;padding:16px 18px;color:#7a6329;font-size:13px}}.safety strong{{display:block;margin-bottom:4px}}
-footer{{margin-top:36px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:12px}}
-@media(max-width:720px){{.shell{{padding:26px 16px 48px}}h1{{font-size:25px}}.chart-grid{{grid-template-columns:1fr}}}}
-</style></head><body><main class="shell">
-<header><div class="brand"><span class="dot"></span>DataSnap</div><div class="eyebrow">DECISION BRIEF</div><h1>Analytical Decision Report</h1><p class="sub">A machine-assisted analysis prepared from the uploaded dataset. Use verified metrics for decisions and review recommendations before acting.</p><span class="badge">Verified metrics · Human review required</span></header>
-<section class="section card"><h2>Executive Summary</h2><p class="summary">{executive}</p><div class="answer"><strong>ANSWER TO YOUR QUESTION</strong><p>{answer}</p></div></section>
-<section class="section card"><h2>Statistical Insights</h2>{insights}</section>
-<section class="section card"><h2>Recommended Actions</h2>{actions}</section>
-<section class="section"><h2>Visual Evidence</h2>{_chart_gallery(charts)}</section>
-<section class="section card"><h2>Machine-Verified Metrics</h2>{_metric_sections(metrics)}</section>
-<section class="section safety"><strong>Decision safety</strong>Narrative findings are advisory. Correlation and statistical significance do not prove causation. Missing values are not zero, and unsupported claims remain unknown.</section>
-<footer>Generated by DataSnap · Evidence-first reporting</footer></main></body></html>'''
+    chart_markup = _chart_gallery(charts)
+    suggestion_markup = ''.join(f'<li>{_text(suggestion)}</li>' for suggestion in _datasnap_suggestion(metrics))
+    return f"""<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Exploratory Data Analysis Report</title>
+<style>body{{font:15px/1.6 system-ui;max-width:1000px;margin:40px auto;padding:0 20px;color:#18202a}}pre{{overflow:auto;background:#f3f5f9;padding:16px;border-radius:8px}}.chart-grid{{display:grid;grid-template-columns:repeat(2,1fr);gap:16px}}.chart img{{width:100%}}@media(max-width:700px){{.chart-grid{{grid-template-columns:1fr}}}}</style></head>
+<body><h1>Exploratory Data Analysis Report</h1>
+<p>EDA is a comprehensive methodology that includes both non-graphical statistical summaries and data visualization techniques.</p>
+<h2>Non-Graphical Statistical Summaries</h2>{_metric_sections(metrics)}
+<h2>Data Visualizations</h2>{chart_markup}
+<h2>Suggestion by DataSnap</h2><p>The following are conservative next steps based only on the observed EDA results:</p><ul>{suggestion_markup}</ul></body></html>"""
 
 
 def build_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: list[str]) -> tuple[str, str]:

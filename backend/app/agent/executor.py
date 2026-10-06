@@ -8,9 +8,43 @@ import sys
 import json
 import subprocess
 import tempfile
+import ast
+import os
+import resource
 from pathlib import Path
 from typing import Optional
 from .contracts import ExecutionResult
+
+
+_ALLOWED_IMPORTS = {"base64", "io", "json", "matplotlib", "pathlib", "polars", "scipy"}
+_BLOCKED_CALLS = {"eval", "exec", "open", "__import__", "system", "popen", "run", "Popen"}
+
+
+def _validate_generated_code(code_content: str) -> None:
+    """Reject filesystem, process, and network primitives before execution."""
+    try:
+        tree = ast.parse(code_content)
+    except SyntaxError as error:
+        raise ValueError(f"Generated code is not valid Python: {error}") from error
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            if isinstance(node, ast.Import):
+                modules = [alias.name.split(".")[0] for alias in node.names]
+            else:
+                modules = [(node.module or "").split(".")[0]]
+            if any(module not in _ALLOWED_IMPORTS for module in modules):
+                raise ValueError("Generated code imports a module outside the analytics allowlist.")
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id in _BLOCKED_CALLS:
+            raise ValueError(f"Generated code calls blocked primitive '{node.func.id}'.")
+        if isinstance(node, ast.Attribute) and node.attr in {"system", "popen", "Popen"}:
+            raise ValueError("Generated code contains a blocked process primitive.")
+
+
+def _limit_child_process() -> None:
+    """Apply Unix resource limits to the generated-code child process."""
+    resource.setrlimit(resource.RLIMIT_CPU, (60, 60))
+    resource.setrlimit(resource.RLIMIT_AS, (2 * 1024 * 1024 * 1024, 2 * 1024 * 1024 * 1024))
+    resource.setrlimit(resource.RLIMIT_NOFILE, (64, 64))
 
 
 def execute_sandboxed_code(
@@ -30,6 +64,15 @@ def execute_sandboxed_code(
     Returns:
         ExecutionResult object with execution status, metrics, and base64 charts.
     """
+    try:
+        _validate_generated_code(code_content)
+    except ValueError as error:
+        return ExecutionResult(
+            success=False,
+            stderr=str(error),
+            return_code=-1,
+            error_message=str(error),
+        )
     temporary_directory = None
     if scratch_dir is None:
         temporary_directory = tempfile.TemporaryDirectory(prefix="ai-agent-")
@@ -82,12 +125,28 @@ with open(OUTPUT_JSON_PATH, "w", encoding="utf-8") as f:
     script_path.write_text(full_code, encoding="utf-8")
     
     try:
+        safe_env = {
+            "PATH": os.environ.get("PATH", ""),
+            "PYTHONPATH": "",
+            "MPLCONFIGDIR": str(scratch_dir),
+            "POLARS_MAX_THREADS": "1",
+            "RAYON_NUM_THREADS": "1",
+            "OMP_NUM_THREADS": "1",
+            "OPENBLAS_NUM_THREADS": "1",
+            "MKL_NUM_THREADS": "1",
+        }
+        run_kwargs = {
+            "capture_output": True,
+            "text": True,
+            "timeout": timeout_seconds,
+            "cwd": str(scratch_dir),
+            "env": safe_env,
+        }
+        if os.name == "posix":
+            run_kwargs["preexec_fn"] = _limit_child_process
         proc = subprocess.run(
-            [sys.executable, str(script_path)],
-            capture_output=True,
-            text=True,
-            timeout=timeout_seconds,
-            cwd=str(scratch_dir)
+            [sys.executable, "-I", str(script_path)],
+            **run_kwargs,
         )
         
         stdout = proc.stdout
@@ -136,7 +195,7 @@ with open(OUTPUT_JSON_PATH, "w", encoding="utf-8") as f:
             return_code=-1,
             error_message=f"Timeout limit ({timeout_seconds}s) exceeded."
         )
-    except Exception as e:
+    except (OSError, json.JSONDecodeError, ValueError) as e:
         return ExecutionResult(
             success=False,
             stdout="",
@@ -147,4 +206,3 @@ with open(OUTPUT_JSON_PATH, "w", encoding="utf-8") as f:
     finally:
         if temporary_directory is not None:
             temporary_directory.cleanup()
-

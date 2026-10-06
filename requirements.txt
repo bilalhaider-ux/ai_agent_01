@@ -14,7 +14,7 @@ polars>=1.44.0
 fastexcel>=0.14.0
 scipy>=1.16.0
 matplotlib>=3.11.0
+pillow>=10.0.0
 pydantic>=2.13.0
 python-dotenv>=1.2.0
 upstash-redis>=1.0.0
-

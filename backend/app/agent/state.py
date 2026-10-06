@@ -14,6 +14,7 @@ class AgentState(TypedDict, total=False):
     # Stage 1: Context Minification
     minified_context: Optional[Dict[str, Any]]
     data_quality: Optional[Dict[str, Any]]
+    eda_artifacts: Optional[Dict[str, Any]]
     
     # Stage 2: Intent & Plan Contract
     plan: Optional[Dict[str, Any]]
@@ -34,4 +35,3 @@ class AgentState(TypedDict, total=False):
     # Terminal Status
     fatal_error: Optional[str]
     status: str
-
