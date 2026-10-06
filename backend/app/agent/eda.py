@@ -146,7 +146,16 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
             charts.append(_chart_base64())
             chart_types.append(f"Histogram: {name}")
             plt.figure(figsize=(7, 4))
-            plt.boxplot(values, orientation="horizontal", patch_artist=True, boxprops={"facecolor": "#c7d2fe"})
+            boxplot_options = {
+                "patch_artist": True,
+                "boxprops": {"facecolor": "#c7d2fe"},
+            }
+            try:
+                plt.boxplot(values, orientation="horizontal", **boxplot_options)
+            except TypeError:
+                # Older Matplotlib releases use ``vert`` instead of
+                # ``orientation`` and may also reject newer label arguments.
+                plt.boxplot(values, vert=False, **boxplot_options)
             plt.title(f"Box plot of {name}")
             plt.xlabel(name)
             charts.append(_chart_base64())
