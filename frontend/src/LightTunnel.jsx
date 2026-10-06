@@ -178,12 +178,13 @@ const LightTunnel = ({
     const container = containerRef.current;
     if (!container) return;
 
+    const isCoarse = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
     const renderer = new Renderer({
       webgl: 2,
       alpha: true,
       premultipliedAlpha: true,
       antialias: false,
-      dpr: Math.min(window.devicePixelRatio || 1, 2)
+      dpr: isCoarse ? 1 : Math.min(window.devicePixelRatio || 1, 2)
     });
 
     const gl = renderer.gl;
@@ -265,6 +266,7 @@ const LightTunnel = ({
     let raf = 0;
     let isVisible = true;
     let isPageVisible = !document.hidden;
+    let motionReduced = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)').matches : false;
     const t0 = performance.now();
 
     const loop = (t) => {
@@ -286,6 +288,11 @@ const LightTunnel = ({
     };
 
     const tryStart = () => {
+      if (motionReduced) {
+        program.uniforms.iTime.value = 0.5;
+        renderer.render({ scene: mesh });
+        return;
+      }
       if (isVisible && isPageVisible && raf === 0) raf = requestAnimationFrame(loop);
     };
     const tryStop = () => {
@@ -310,6 +317,21 @@ const LightTunnel = ({
     };
     document.addEventListener('visibilitychange', onVisibility);
 
+    const motionQuery = typeof window !== 'undefined' && window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+    const onMotionChange = (e) => {
+      motionReduced = e.matches;
+      if (motionReduced) {
+        tryStop();
+        program.uniforms.iTime.value = 0.5;
+        renderer.render({ scene: mesh });
+      } else {
+        tryStart();
+      }
+    };
+    if (motionQuery?.addEventListener) {
+      motionQuery.addEventListener('change', onMotionChange);
+    }
+
     tryStart();
 
     return () => {
@@ -317,6 +339,9 @@ const LightTunnel = ({
       ro.disconnect();
       io.disconnect();
       document.removeEventListener('visibilitychange', onVisibility);
+      if (motionQuery?.removeEventListener) {
+        motionQuery.removeEventListener('change', onMotionChange);
+      }
       canvas.removeEventListener('mousemove', handleMouseMove);
       canvas.removeEventListener('mouseleave', handleMouseLeave);
       ctxMap.delete(container);

@@ -94,15 +94,24 @@ def validate_metric_contract(metrics: dict[str, Any]) -> list[str]:
         _validate_json_value(metrics)
     except ValueError as error:
         errors.append(str(error))
-    for key, value in metrics.items():
-        key_lower = key.lower()
-        if isinstance(value, (int, float)):
-            if "pct" in key_lower and not 0 <= value <= 100:
-                errors.append(f"{key} must be between 0 and 100.")
-            if ("p_value" in key_lower or key_lower.endswith("pvalue")) and not 0 <= value <= 1:
-                errors.append(f"{key} must be between 0 and 1.")
-            if "correlation" in key_lower and not -1 <= value <= 1:
-                errors.append(f"{key} must be between -1 and 1.")
+
+    def _check(data: Any, path: str = ""):
+        if isinstance(data, dict):
+            for k, v in data.items():
+                _check(v, f"{path}.{k}" if path else k)
+        elif isinstance(data, list):
+            for item in data:
+                _check(item, path)
+        elif isinstance(data, (int, float)) and not isinstance(data, bool):
+            key_lower = path.split(".")[-1].lower()
+            if "pct" in key_lower and not 0 <= data <= 100:
+                errors.append(f"{path} must be between 0 and 100.")
+            if ("p_value" in key_lower or key_lower.endswith("pvalue")) and not 0 <= data <= 1:
+                errors.append(f"{path} must be between 0 and 1.")
+            if ("correlation" in key_lower or key_lower in ("pearson_r", "spearman_r")) and not -1 <= data <= 1:
+                errors.append(f"{path} must be between -1 and 1.")
+
+    _check(metrics)
     return errors
 
 

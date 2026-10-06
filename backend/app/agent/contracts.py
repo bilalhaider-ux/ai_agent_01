@@ -51,6 +51,7 @@ class ExecutionResult(BaseModel):
     return_code: int = Field(default=0, description="Exit code of the child subprocess")
     metrics: Dict[str, Any] = Field(default_factory=dict, description="Extracted metrics dictionary")
     base64_charts: List[str] = Field(default_factory=list, description="Base64-encoded PNG image strings")
+    chart_details: List[Dict[str, Any]] = Field(default_factory=list, description="Structured chart descriptors with title, type, and image")
     error_message: Optional[str] = Field(default=None, description="Formatted error description if failed")
 
 

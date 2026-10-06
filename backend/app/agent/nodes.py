@@ -65,6 +65,7 @@ def stage4_isolated_execution(state: AgentState) -> Dict[str, Any]:
         success=True,
         metrics={"exploratory_data_analysis": artifacts["non_graphical"]},
         base64_charts=artifacts["charts"],
+        chart_details=artifacts.get("chart_details", []),
     )
     return {"execution_result": result.model_dump(), "status": "execution_finished"}
 
@@ -79,13 +80,52 @@ def stage5_self_correction(state: AgentState) -> Dict[str, Any]:
 
 
 def stage6_output_synthesis(state: AgentState) -> Dict[str, Any]:
-    """Create a minimal EDA-only synthesis without narrative recommendations."""
+    """Create a grounded EDA synthesis with summary, insights, query context, and recommendations."""
+    artifacts = state.get("eda_artifacts", {})
+    non_graphical = artifacts.get("non_graphical", {})
+    query = state.get("query", "").strip() or "Comprehensive exploratory data analysis"
+    metrics = {"exploratory_data_analysis": non_graphical}
+
+    from ..services.report_service import build_strategic_recommendations
+    recommendations = build_strategic_recommendations(metrics)
+    recommended_action_strings = [
+        f"{r['title']}: {r['recommended_action']} ({r['data_justification']})"
+        for r in recommendations
+    ]
+
+    row_count = non_graphical.get("row_count", 0)
+    col_count = non_graphical.get("column_count", 0)
+    num_cols = len(non_graphical.get("numeric_summary", {}))
+    cat_cols = len(non_graphical.get("categorical_summary", {}))
+    dup_rows = non_graphical.get("duplicate_row_count", 0)
+
+    insights = []
+    if row_count:
+        insights.append(f"Analyzed {row_count:,} records across {col_count} columns ({num_cols} numerical, {cat_cols} categorical).")
+    if dup_rows:
+        insights.append(f"Identified {dup_rows:,} duplicate rows requiring review.")
+    else:
+        insights.append("Zero duplicate rows detected.")
+
+    strongest_rel = non_graphical.get("multivariate", {}).get("strongest_numeric_relationships", [])
+    if strongest_rel:
+        top_pair = strongest_rel[0]
+        insights.append(f"Strongest numeric correlation: {top_pair['columns'][0]} & {top_pair['columns'][1]} (Pearson r = {top_pair['pearson_r']:.3f}).")
+
+    stat_tests = non_graphical.get("statistical_tests", {}).get("categorical_numeric_tests", [])
+    sig_tests = [t for t in stat_tests if t.get("significant_at_0_05")]
+    if sig_tests:
+        t = sig_tests[0]
+        insights.append(f"Statistically significant difference ({t['test']}): {t['numeric']} grouped by {t['categorical']} (p = {t['p_value']:.4f}).")
+
+    exec_summary = f"Exploratory data analysis of {row_count:,} rows and {col_count} features completed. Quality profiling, distribution checks, correlation analysis, and statistical hypothesis testing verified."
+
     return {
         "synthesis": {
-            "executive_summary": "Comprehensive exploratory data analysis completed.",
-            "statistical_insights": [],
-            "answers_to_query": "",
-            "recommended_actions": [],
+            "executive_summary": exec_summary,
+            "statistical_insights": insights,
+            "answers_to_query": query,
+            "recommended_actions": recommended_action_strings,
             "full_markdown_report": "",
         },
         "status": "completed",

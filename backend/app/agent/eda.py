@@ -80,18 +80,39 @@ def _bivariate_analysis(
     categorical: list[str],
 ) -> dict[str, Any]:
     numeric_pairs: list[dict[str, Any]] = []
-    for index, first in enumerate(numeric):
-        for second in numeric[index + 1:]:
+    # Evaluate up to 15 numeric columns to prevent combinatorial explosion
+    eval_numeric = numeric[:15]
+    for index, first in enumerate(eval_numeric):
+        for second in eval_numeric[index + 1:]:
             values = df.select([first, second]).drop_nulls().head(100_000)
             if values.height < 3:
                 continue
-            x = values[first].to_list()
-            y = values[second].to_list()
-            pearson = stats.pearsonr(x, y) if len(set(x)) > 1 and len(set(y)) > 1 else None
-            spearman = stats.spearmanr(x, y) if pearson else None
+            x_raw = values[first].to_list()
+            y_raw = values[second].to_list()
+            # Filter finite pairs
+            pairs = [
+                (float(a), float(b))
+                for a, b in zip(x_raw, y_raw)
+                if _finite(a) is not None and _finite(b) is not None
+            ]
+            if len(pairs) < 3:
+                continue
+            x = [p[0] for p in pairs]
+            y = [p[1] for p in pairs]
+            pearson = None
+            spearman = None
+            if len(set(x)) > 1 and len(set(y)) > 1:
+                try:
+                    pearson = stats.pearsonr(x, y)
+                except Exception:
+                    pearson = None
+                try:
+                    spearman = stats.spearmanr(x, y)
+                except Exception:
+                    spearman = None
             numeric_pairs.append({
                 "columns": [first, second],
-                "count": values.height,
+                "count": len(pairs),
                 "pearson_r": _finite(pearson.statistic) if pearson else None,
                 "pearson_p_value": _finite(pearson.pvalue) if pearson else None,
                 "spearman_r": _finite(spearman.statistic) if spearman else None,
@@ -169,16 +190,25 @@ def _statistical_tests(
         for measure in numeric[:8]:
             groups: dict[str, list[float]] = defaultdict(list)
             for row in df.select([category, measure]).drop_nulls().iter_rows():
-                groups[str(row[0])].append(float(row[1]))
+                val = _finite(row[1])
+                if val is not None:
+                    groups[str(row[0])].append(val)
             usable = [values for values in groups.values() if len(values) >= 2]
             if len(usable) < 2:
                 continue
             if len(usable) == 2:
-                result = stats.ttest_ind(*usable, equal_var=False)
-                test_name = "Welch t-test"
+                try:
+                    result = stats.ttest_ind(*usable, equal_var=False)
+                    test_name = "Welch t-test"
+                except Exception:
+                    continue
             else:
-                result = stats.f_oneway(*usable)
-                test_name = "One-way ANOVA"
+                try:
+                    result = stats.f_oneway(*usable)
+                    test_name = "One-way ANOVA"
+                except Exception:
+                    continue
+            p_val = _finite(result.pvalue)
             categorical_numeric.append({
                 "categorical": category,
                 "numeric": measure,
@@ -186,8 +216,8 @@ def _statistical_tests(
                 "group_count": len(usable),
                 "sample_sizes": [len(values) for values in usable],
                 "statistic": _finite(result.statistic),
-                "p_value": _finite(result.pvalue),
-                "significant_at_0_05": bool(result.pvalue < 0.05),
+                "p_value": p_val,
+                "significant_at_0_05": bool(p_val is not None and p_val < 0.05),
             })
 
     categorical_pairs: list[dict[str, Any]] = []
@@ -207,15 +237,19 @@ def _statistical_tests(
                 [counts[(left, right)] for right in second_values]
                 for left in first_values
             ]
-            result = stats.chi2_contingency(table)
-            categorical_pairs.append({
-                "categorical_columns": [first, second],
-                "test": "Chi-square test of independence",
-                "degrees_of_freedom": int(result.dof),
-                "statistic": _finite(result.statistic),
-                "p_value": _finite(result.pvalue),
-                "significant_at_0_05": bool(result.pvalue < 0.05),
-            })
+            try:
+                result = stats.chi2_contingency(table)
+                p_val = _finite(result.pvalue)
+                categorical_pairs.append({
+                    "categorical_columns": [first, second],
+                    "test": "Chi-square test of independence",
+                    "degrees_of_freedom": int(result.dof),
+                    "statistic": _finite(result.statistic),
+                    "p_value": p_val,
+                    "significant_at_0_05": bool(p_val is not None and p_val < 0.05),
+                })
+            except Exception:
+                continue
     return {
         "categorical_numeric_tests": categorical_numeric,
         "categorical_categorical_tests": categorical_pairs,
@@ -224,10 +258,25 @@ def _statistical_tests(
 
 def _numeric_profile(df: pl.DataFrame, name: str) -> dict[str, Any]:
     values = df.get_column(name).drop_nulls()
-    raw = values.to_list()
+    raw = [v for v in values.to_list() if _finite(v) is not None]
     q1 = _finite(values.quantile(0.25))
     q3 = _finite(values.quantile(0.75))
     std = _finite(values.std())
+    zero_count = int((values == 0).sum()) if values.len() else 0
+    negative_count = int((values < 0).sum()) if values.len() else 0
+    skewness = None
+    kurtosis = None
+    if len(raw) >= 3:
+        try:
+            skewness = _finite(stats.skew(raw, bias=False))
+        except Exception:
+            skewness = None
+    if len(raw) >= 4:
+        try:
+            kurtosis = _finite(stats.kurtosis(raw, bias=False))
+        except Exception:
+            kurtosis = None
+
     profile = {
         "count": values.len(),
         "missing": df.get_column(name).null_count(),
@@ -238,10 +287,10 @@ def _numeric_profile(df: pl.DataFrame, name: str) -> dict[str, Any]:
         "min": _finite(values.min()),
         "max": _finite(values.max()),
         "quantiles": {"q25": q1, "q75": q3},
-        "skewness": _finite(stats.skew(raw, bias=False)) if len(raw) >= 3 else None,
-        "kurtosis": _finite(stats.kurtosis(raw, bias=False)) if len(raw) >= 4 else None,
-        "zero_count": int(sum(value == 0 for value in raw)),
-        "negative_count": int(sum(value < 0 for value in raw)),
+        "skewness": skewness,
+        "kurtosis": kurtosis,
+        "zero_count": zero_count,
+        "negative_count": negative_count,
     }
     if q1 is not None and q3 is not None and values.len() >= 4:
         iqr = q3 - q1
@@ -267,19 +316,21 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
     categorical_summary: dict[str, Any] = {}
     for name in categorical:
         values = df.get_column(name).drop_nulls()
+        top_rows = (
+            df.filter(pl.col(name).is_not_null())
+            .group_by(name, maintain_order=True)
+            .agg(pl.len().alias("count"))
+            .sort("count", descending=True)
+            .head(10)
+            .iter_rows()
+        )
         categorical_summary[name] = {
             "missing": df.get_column(name).null_count(),
             "unique": values.n_unique(),
             "cardinality_ratio": round(values.n_unique() / values.len(), 6) if values.len() else None,
             "top_values": [
                 {"value": str(row[0]), "count": int(row[1])}
-                for row in (
-                    df.group_by(name, maintain_order=True)
-                    .agg(pl.len().alias("count"))
-                    .sort("count", descending=True)
-                    .head(10)
-                    .iter_rows()
-                )
+                for row in top_rows
             ],
         }
 
@@ -288,47 +339,70 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
     statistical_tests = _statistical_tests(df, numeric, categorical)
     charts: list[str] = []
     chart_types: list[str] = []
+    chart_details: list[dict[str, Any]] = []
+
     for name in numeric[:6]:
-        values = df.get_column(name).drop_nulls().head(20_000).to_list()
+        values = [v for v in df.get_column(name).drop_nulls().head(20_000).to_list() if _finite(v) is not None]
         if values:
-            plt.figure(figsize=(7, 4))
-            plt.hist(values, bins=min(20, max(5, len(set(values)))), color="#4f46e5", alpha=0.85)
-            plt.title(f"Distribution of {name}")
-            plt.xlabel(name)
-            plt.ylabel("Frequency")
-            charts.append(_chart_base64())
-            chart_types.append(f"Histogram: {name}")
-            plt.figure(figsize=(7, 4))
-            boxplot_options = {
-                "patch_artist": True,
-                "boxprops": {"facecolor": "#c7d2fe"},
-            }
             try:
-                plt.boxplot(values, orientation="horizontal", **boxplot_options)
-            except TypeError:
-                # Older Matplotlib releases use ``vert`` instead of
-                # ``orientation`` and may also reject newer label arguments.
-                plt.boxplot(values, vert=False, **boxplot_options)
-            plt.title(f"Box plot of {name}")
-            plt.xlabel(name)
-            charts.append(_chart_base64())
-            chart_types.append(f"Box plot: {name}")
+                plt.figure(figsize=(7, 4))
+                plt.hist(values, bins=min(20, max(5, len(set(values)))), color="#4f46e5", alpha=0.85)
+                plt.title(f"Distribution of {name}")
+                plt.xlabel(name)
+                plt.ylabel("Frequency")
+                b64 = _chart_base64()
+                charts.append(b64)
+                t = f"Histogram: {name}"
+                chart_types.append(t)
+                chart_details.append({"title": t, "type": "histogram", "feature": name, "image": b64})
+            finally:
+                plt.close("all")
+
+            try:
+                plt.figure(figsize=(7, 4))
+                boxplot_options = {
+                    "patch_artist": True,
+                    "boxprops": {"facecolor": "#c7d2fe"},
+                }
+                try:
+                    plt.boxplot(values, orientation="horizontal", **boxplot_options)
+                except TypeError:
+                    # Older Matplotlib releases use ``vert`` instead of
+                    # ``orientation`` and may also reject newer label arguments.
+                    plt.boxplot(values, vert=False, **boxplot_options)
+                plt.title(f"Box plot of {name}")
+                plt.xlabel(name)
+                b64 = _chart_base64()
+                charts.append(b64)
+                t = f"Box plot: {name}"
+                chart_types.append(t)
+                chart_details.append({"title": t, "type": "box_plot", "feature": name, "image": b64})
+            finally:
+                plt.close("all")
+
     for name in categorical[:6]:
         counts = (
-            df.group_by(name, maintain_order=True)
+            df.filter(pl.col(name).is_not_null())
+            .group_by(name, maintain_order=True)
             .agg(pl.len().alias("count"))
             .sort("count", descending=True)
             .head(10)
         )
         if counts.height:
-            plt.figure(figsize=(7, 4))
-            plt.bar([str(value) for value in counts[name].to_list()], counts["count"].to_list(), color="#0f9d6b")
-            plt.title(f"Top categories in {name}")
-            plt.xlabel(name)
-            plt.ylabel("Count")
-            plt.xticks(rotation=35, ha="right")
-            charts.append(_chart_base64())
-            chart_types.append(f"Category frequency: {name}")
+            try:
+                plt.figure(figsize=(7, 4))
+                plt.bar([str(value) for value in counts[name].to_list()], counts["count"].to_list(), color="#0f9d6b")
+                plt.title(f"Top categories in {name}")
+                plt.xlabel(name)
+                plt.ylabel("Count")
+                plt.xticks(rotation=35, ha="right")
+                b64 = _chart_base64()
+                charts.append(b64)
+                t = f"Category frequency: {name}"
+                chart_types.append(t)
+                chart_details.append({"title": t, "type": "bar_chart", "feature": name, "image": b64})
+            finally:
+                plt.close("all")
 
     for first, second in [
         pair["columns"] for pair in bivariate["numeric_pairs"][:3]
@@ -336,24 +410,42 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
         pairs = df.select([first, second]).drop_nulls()
         if pairs.height:
             pairs = pairs.head(20_000)
-            plt.figure(figsize=(7, 4))
-            plt.scatter(pairs[first].to_list(), pairs[second].to_list(), alpha=0.7, color="#d97706")
-            plt.title(f"Relationship between {first} and {second}")
-            plt.xlabel(first)
-            plt.ylabel(second)
-            charts.append(_chart_base64())
-            chart_types.append(f"Scatter plot: {first} vs {second}")
+            x_vals = [v for v in pairs[first].to_list() if _finite(v) is not None]
+            y_vals = [v for v in pairs[second].to_list() if _finite(v) is not None]
+            min_len = min(len(x_vals), len(y_vals))
+            if min_len >= 3:
+                try:
+                    plt.figure(figsize=(7, 4))
+                    plt.scatter(x_vals[:min_len], y_vals[:min_len], alpha=0.7, color="#d97706")
+                    plt.title(f"Relationship between {first} and {second}")
+                    plt.xlabel(first)
+                    plt.ylabel(second)
+                    b64 = _chart_base64()
+                    charts.append(b64)
+                    t = f"Scatter plot: {first} vs {second}"
+                    chart_types.append(t)
+                    chart_details.append({"title": t, "type": "scatter_plot", "feature": f"{first} vs {second}", "image": b64})
+                finally:
+                    plt.close("all")
 
     if len(numeric) >= 2 and multivariate["pearson_correlation_matrix"]:
-        matrix = df.select(numeric).drop_nulls().head(100_000).to_pandas().corr(method="pearson")
-        plt.figure(figsize=(max(6, len(numeric) * 0.7), max(5, len(numeric) * 0.6)))
-        image = plt.imshow(matrix.to_numpy(), cmap="coolwarm", vmin=-1, vmax=1, aspect="auto")
-        plt.colorbar(image, label="Pearson r")
-        plt.xticks(range(len(numeric)), numeric, rotation=45, ha="right")
-        plt.yticks(range(len(numeric)), numeric)
-        plt.title("Multivariate Pearson correlation matrix")
-        charts.append(_chart_base64())
-        chart_types.append("Correlation heatmap: numeric features")
+        try:
+            usable_df = df.select(numeric).drop_nulls().head(100_000)
+            if usable_df.height >= 3:
+                matrix = usable_df.to_pandas().corr(method="pearson").fillna(0)
+                plt.figure(figsize=(max(6, len(numeric) * 0.7), max(5, len(numeric) * 0.6)))
+                image = plt.imshow(matrix.to_numpy(), cmap="coolwarm", vmin=-1, vmax=1, aspect="auto")
+                plt.colorbar(image, label="Pearson r")
+                plt.xticks(range(len(numeric)), numeric, rotation=45, ha="right")
+                plt.yticks(range(len(numeric)), numeric)
+                plt.title("Multivariate Pearson correlation matrix")
+                b64 = _chart_base64()
+                charts.append(b64)
+                t = "Correlation heatmap: numeric features"
+                chart_types.append(t)
+                chart_details.append({"title": t, "type": "heatmap", "feature": "numeric_correlations", "image": b64})
+        finally:
+            plt.close("all")
 
     quality_flags = []
     if df.height == 0:
@@ -409,4 +501,5 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
         "visualization_count": len(charts),
         "visualization_types": chart_types,
         "charts": charts,
+        "chart_details": chart_details,
     }

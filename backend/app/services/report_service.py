@@ -160,8 +160,35 @@ def build_strategic_recommendations(metrics: dict[str, Any]) -> list[dict[str, s
 
 def markdown_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: list[str]) -> str:
     eda = metrics.get('exploratory_data_analysis', metrics)
+    non_graphical = eda.get('non_graphical', eda) if isinstance(eda, dict) else {}
     suggestions = build_datasnap_suggestions(metrics)
     actions = build_strategic_recommendations(metrics)
+
+    num_profiles = non_graphical.get('numeric_summary', {})
+    cat_profiles = non_graphical.get('categorical_summary', {})
+
+    tables = []
+    if num_profiles:
+        tables.append('### Numerical Feature Summary')
+        tables.append('| Feature | Count | Mean | Median | Std | Min | Max | IQR | Outliers |')
+        tables.append('| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |')
+        for col, p in num_profiles.items():
+            tables.append(
+                f"| `{col}` | {p.get('count', 0):,} | {_number(p.get('mean'))} | {_number(p.get('median'))} | {_number(p.get('std'))} | {_number(p.get('min'))} | {_number(p.get('max'))} | {_number(p.get('iqr'))} | {p.get('outlier_count_iqr', 0):,} |"
+            )
+        tables.append('')
+
+    if cat_profiles:
+        tables.append('### Categorical Feature Summary')
+        tables.append('| Feature | Unique | Missing | Cardinality Ratio | Top Categories |')
+        tables.append('| :--- | :--- | :--- | :--- | :--- |')
+        for col, p in cat_profiles.items():
+            top_vals = ", ".join(f"{v['value']} ({v['count']:,})" for v in p.get('top_values', [])[:3])
+            tables.append(
+                f"| `{col}` | {p.get('unique', 0):,} | {p.get('missing', 0):,} | {_number(p.get('cardinality_ratio'))} | {top_vals} |"
+            )
+        tables.append('')
+
     lines = [
         '# Exploratory Data Analysis Report',
         '',
@@ -199,6 +226,7 @@ def markdown_report(synthesis: dict[str, Any], metrics: dict[str, Any], charts: 
         f"```json\n{json.dumps(eda, indent=2, default=str)}\n```",
         '',
         '## Non-Graphical Statistical Summaries',
+        *tables,
         'The verified JSON above contains the complete non-graphical statistical output.',
         '',
         '## Data Visualizations',
