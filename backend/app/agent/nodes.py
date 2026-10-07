@@ -98,14 +98,37 @@ def stage6_output_synthesis(state: AgentState) -> Dict[str, Any]:
     num_cols = len(non_graphical.get("numeric_summary", {}))
     cat_cols = len(non_graphical.get("categorical_summary", {}))
     dup_rows = non_graphical.get("duplicate_row_count", 0)
+    health = non_graphical.get("data_health", {})
+    health_score = non_graphical.get("data_health_score", health.get("score"))
+    business_insights = non_graphical.get("business_insights", {})
+    pareto = business_insights.get("pareto_analysis", {})
+    ml_readiness = business_insights.get("ml_readiness", {})
 
     insights = []
     if row_count:
-        insights.append(f"Analyzed {row_count:,} records across {col_count} columns ({num_cols} numerical, {cat_cols} categorical).")
+        health_note = f" Data Health Score: {health_score}/100 ({health.get('grade', 'Reviewed')})." if health_score is not None else ""
+        insights.append(f"Analyzed {row_count:,} records across {col_count} columns ({num_cols} numerical, {cat_cols} categorical).{health_note}")
     if dup_rows:
         insights.append(f"Identified {dup_rows:,} duplicate rows requiring review.")
     else:
         insights.append("Zero duplicate rows detected.")
+
+    if pareto.get("applicable"):
+        insights.append(f"Pareto concentration: {pareto.get('summary')}")
+
+    missing_alerts = business_insights.get("missingness_alerts", [])
+    severe_missing = [a for a in missing_alerts if a.get("severity") in {"critical", "high"}]
+    if severe_missing:
+        target = severe_missing[0]
+        insights.append(f"High-risk missingness alert: `{target['column']}` exhibits {target['missing_pct']}% null values ({target['missing_count']:,} rows).")
+
+    if ml_readiness.get("multicollinearity_flags"):
+        collinear_pairs = [f"{f['feature_1']} & {f['feature_2']} (r={f['pearson_r']})" for f in ml_readiness["multicollinearity_flags"][:2]]
+        insights.append(f"Multicollinearity warning (|r| > 0.85): {', '.join(collinear_pairs)}.")
+
+    if ml_readiness.get("zero_variance_columns"):
+        zero_cols = [f"`{f['column']}`" for f in ml_readiness["zero_variance_columns"][:3]]
+        insights.append(f"Zero-variance features detected: {', '.join(zero_cols)} (uninformative constant signals).")
 
     strongest_rel = non_graphical.get("multivariate", {}).get("strongest_numeric_relationships", [])
     if strongest_rel:
@@ -118,7 +141,10 @@ def stage6_output_synthesis(state: AgentState) -> Dict[str, Any]:
         t = sig_tests[0]
         insights.append(f"Statistically significant difference ({t['test']}): {t['numeric']} grouped by {t['categorical']} (p = {t['p_value']:.4f}).")
 
-    exec_summary = f"Exploratory data analysis of {row_count:,} rows and {col_count} features completed. Quality profiling, distribution checks, correlation analysis, and statistical hypothesis testing verified."
+    exec_summary = f"Exploratory data analysis of {row_count:,} rows and {col_count} features completed. "
+    if health_score is not None:
+        exec_summary += f"Dataset earned an overall Data Health Score of {health_score}/100 ({health.get('grade', 'Reviewed')}). "
+    exec_summary += "Quality profiling, distribution checks, correlation analysis, and statistical hypothesis testing verified."
 
     return {
         "synthesis": {

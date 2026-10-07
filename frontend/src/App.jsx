@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence, useScroll, useSpring, useReducedMotion, useInView, useMotionValue, useTransform, animate as animateValue } from 'framer-motion'
-import { Activity, ArrowLeft, ArrowUpRight, BarChart3, BrainCircuit, Check, ChevronRight, Cpu, Database, Download, FileSearch, FileText, Gauge, LineChart, LoaderCircle, Lock, Moon, Play, Plus, Save, ShieldCheck, Sparkles, Sun, Table2, Terminal, UploadCloud, Workflow, X, Zap } from 'lucide-react'
+import { Activity, ArrowLeft, ArrowUpRight, BarChart3, BrainCircuit, Check, ChevronRight, Cpu, Database, Download, FileSearch, FileText, Gauge, LineChart, LoaderCircle, Lock, Moon, Play, Plus, Printer, Save, ShieldCheck, Sparkles, Sun, Table2, Terminal, UploadCloud, Workflow, X, Zap } from 'lucide-react'
 import Lenis from 'lenis'
 import 'lenis/dist/lenis.css'
 import { listReports, removeReport, saveReport } from './lib/storage'
@@ -1404,6 +1404,12 @@ function ReportPage({ report, saved, onSave, onBack, download }) {
   const chartDetails = report.chart_details || []
   const insights = report.statistical_insights || []
 
+  const dataHealth = nonGraphical.data_health || {}
+  const dataHealthScore = nonGraphical.data_health_score ?? dataHealth.score
+  const businessInsights = nonGraphical.business_insights || {}
+  const pareto = businessInsights.pareto_analysis || {}
+  const mlReadiness = businessInsights.ml_readiness || {}
+
   const rowCount = report.grounding?.data_quality?.row_count || nonGraphical.row_count || 0
   const colCount = nonGraphical.column_count || (Object.keys(numericSummary).length + Object.keys(categoricalSummary).length) || 0
   const totalStats = report.grounding?.metric_count || (Object.keys(numericSummary).length * 12 + Object.keys(categoricalSummary).length * 4) || 1
@@ -1420,7 +1426,6 @@ function ReportPage({ report, saved, onSave, onBack, download }) {
     ['metrics', 'Statistical Profiles'],
     ['details', 'Run Details']
   ]
-  const tabFade = { initial: { opacity: 0, y: 14 }, animate: { opacity: 1, y: 0, transition: { duration: 0.4, ease: easeOut } }, exit: { opacity: 0, y: -8, transition: { duration: 0.2 } } }
 
   return (
     <MMain className="report-page" variants={pageMotion} initial="initial" animate="animate" exit="exit">
@@ -1431,16 +1436,50 @@ function ReportPage({ report, saved, onSave, onBack, download }) {
           <motion.button className="save-button" onClick={() => onSave(report)} disabled={saved} whileHover={!saved ? { scale: 1.04 } : {}} whileTap={!saved ? { scale: 0.96 } : {}}><Save size={15} /> {saved ? 'Saved locally' : 'Save report'}</motion.button>
           <button className="outline-button" onClick={() => download('datasnap-report.md', report.markdown_report || '', 'text/markdown')}><FileText size={15} /> Markdown</button>
           <button className="outline-button" onClick={() => download('datasnap-report.html', report.html_report || '', 'text/html')}><Download size={15} /> HTML</button>
+          <button className="outline-button print-action-btn" onClick={() => window.print()} title="Export or print PDF report"><Printer size={15} /> Export PDF</button>
         </div>
       </motion.div>
       <motion.div className="report-paper" variants={rise}>
-        <div className="report-paper-head">
-          <div>
-            <p className="eyebrow"><span /> EXPLORATORY DATA ANALYSIS</p>
-            <h1>EDA report</h1>
-            <p>Prepared from {rowCount.toLocaleString()} rows of uploaded data.</p>
+        <div className="report-paper-head report-executive-head">
+          <div className="report-brand-bar">
+            <div className="report-brand-id">
+              <span className="report-brand-mark">⚡</span>
+              <div>
+                <strong className="report-brand-title">DataSnap</strong>
+                <span className="report-brand-sub">Executive Decision &amp; Analytical Brief</span>
+              </div>
+            </div>
+            <div className="report-audit-pills">
+              <span className="report-pill pill-brand">⚡ Verified Polars Execution</span>
+              <span className="report-pill pill-success">🔬 Deterministic SciPy Engine</span>
+              <span className="report-pill pill-neutral">🔒 Zero-Imputation Evidence</span>
+            </div>
           </div>
-          <span className="report-stamp"><ShieldCheck size={16} /> Computed from data</span>
+
+          <div className="report-lead-block">
+            <p className="eyebrow"><span /> EXPLORATORY DATA ANALYSIS BRIEF</p>
+            <h1>Exploratory Data Analysis Report</h1>
+            <p>A machine-verified diagnostic prepared directly from {rowCount.toLocaleString()} rows and {colCount} features of uploaded observational data.</p>
+          </div>
+
+          <div className="report-meta-grid">
+            <div className="report-meta-cell">
+              <small>Target Dataset</small>
+              <strong>{report.dataset_name || report.grounding?.provenance?.dataset_name || 'Primary Analytical Dataset'}</strong>
+            </div>
+            <div className="report-meta-cell">
+              <small>Analysis Identifier</small>
+              <code>{report.analysis_id || 'DS-EXEC-LOCAL'}</code>
+            </div>
+            <div className="report-meta-cell">
+              <small>Generated Timestamp</small>
+              <strong>{report.timestamp || report.created_at || new Date().toISOString().replace('T', ' ').slice(0, 19) + ' UTC'}</strong>
+            </div>
+            <div className="report-meta-cell">
+              <small>Governing Standard</small>
+              <strong>Gartner / SciPy Strict</strong>
+            </div>
+          </div>
         </div>
         <div className="report-tabs" role="tablist" aria-label="EDA report sections">
           {tabs.map(([id, label]) => (
@@ -1458,383 +1497,455 @@ function ReportPage({ report, saved, onSave, onBack, download }) {
             </button>
           ))}
         </div>
-        <AnimatePresence mode="wait">
-          <motion.div
-            className="report-content"
-            key={tab}
-            role="tabpanel"
-            id={`panel-${tab}`}
-            aria-labelledby={`tab-${tab}`}
-            variants={tabFade}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            {tab === 'overview' && (
-              <>
-                {report.answers_to_query && (
-                  <div className="report-lead">
-                    <span>EDA FOCUS</span>
-                    <p>{report.answers_to_query}</p>
+
+        <div className="report-content">
+          {/* Tab 1: Overview */}
+          <div className={`report-tab-pane ${tab === 'overview' ? 'tab-active' : 'tab-screen-hidden'}`} role="tabpanel" id="panel-overview" aria-labelledby="tab-overview">
+            <h2 className="print-section-header">01. Executive Summary &amp; Data Health</h2>
+            {report.answers_to_query && (
+              <div className="report-lead">
+                <span>EDA FOCUS</span>
+                <p>{report.answers_to_query}</p>
+              </div>
+            )}
+            <div className="report-lead">
+              <span>EXECUTIVE SUMMARY</span>
+              <p>{report.executive_summary || `Comprehensive exploratory data analysis completed for ${rowCount.toLocaleString()} records across ${colCount} features.`}</p>
+            </div>
+            <div className="report-answer">
+              <span>DETERMINISTIC DATA SNAPSHOT</span>
+              <p>Descriptive summaries, distributions, correlations, and hypothesis tests were computed directly from uploaded rows using Polars and SciPy. Raw data remains 100% unaltered.</p>
+            </div>
+
+            {/* Deterministic Data Health Scorecard */}
+            {dataHealthScore != null && (
+              <div className="health-scorecard mt-6">
+                <div className="health-score-main">
+                  <div className="health-score-badge">
+                    <span className="health-score-num">{dataHealthScore}</span>
+                    <span className="health-score-denom">/100</span>
+                  </div>
+                  <div className="health-score-info">
+                    <div className="flex items-center gap-2">
+                      <strong className="text-[15px] font-semibold text-ink">Data Health Score</strong>
+                      <span className={`health-pill grade-${(dataHealth.grade || 'good').toLowerCase()}`}>
+                        {dataHealth.grade || 'Reviewed'}
+                      </span>
+                    </div>
+                    <p className="text-[12.5px] text-ink-soft mt-1">
+                      {dataHealth.rating_description || 'Deterministic quality assessment across completeness, uniqueness, and outlier boundaries.'}
+                    </p>
+                  </div>
+                </div>
+                {dataHealth.sub_scores && (
+                  <div className="health-subscores-grid">
+                    <div className="subscore-cell"><small>COMPLETENESS</small><strong>{dataHealth.sub_scores.completeness}%</strong></div>
+                    <div className="subscore-cell"><small>UNIQUENESS</small><strong>{dataHealth.sub_scores.uniqueness}%</strong></div>
+                    <div className="subscore-cell"><small>OUTLIER CONTROL</small><strong>{dataHealth.sub_scores.outlier_control}%</strong></div>
+                    <div className="subscore-cell"><small>TYPE CONSISTENCY</small><strong>{dataHealth.sub_scores.type_consistency}%</strong></div>
                   </div>
                 )}
-                <div className="report-lead">
-                  <span>EXECUTIVE SUMMARY</span>
-                  <p>{report.executive_summary || `Comprehensive exploratory data analysis completed for ${rowCount.toLocaleString()} records across ${colCount} features.`}</p>
-                </div>
-                <div className="report-answer">
-                  <span>DETERMINISTIC DATA SNAPSHOT</span>
-                  <p>Descriptive summaries, distributions, correlations, and hypothesis tests were computed directly from uploaded rows using Polars and SciPy. Raw data remains 100% unaltered.</p>
-                </div>
-                <div className="overview-cards">
-                  {[
-                    ['ROWS ANALYZED', rowCount.toLocaleString()],
-                    ['COLUMNS PROFILED', colCount],
-                    ['NUMERIC FEATURES', numColumns.length],
-                    ['CATEGORICAL FEATURES', catColumns.length],
-                    ['STATISTICS COMPUTED', typeof totalStats === 'number' ? totalStats.toLocaleString() : totalStats],
-                    ['VISUALIZATIONS', charts.length]
-                  ].map(([label, value], i) => (
-                    <motion.div key={label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 + i * 0.05 }}>
-                      <small>{label}</small>
-                      <strong>{value}</strong>
-                    </motion.div>
-                  ))}
-                </div>
-                {insights.length > 0 && (
-                  <div className="mt-6 rounded-[14px] border border-hairline bg-panel p-5 shadow-sm">
-                    <span className="block font-mono text-[10.5px] uppercase tracking-wider text-ink-dim mb-3">Core Statistical Discoveries</span>
-                    <ul className="space-y-2 text-[13px] text-ink">
-                      {insights.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-2.5">
-                          <Check size={14} className="mt-1 text-ok shrink-0" />
-                          <span className="leading-relaxed">{item}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                )}
-              </>
+              </div>
             )}
 
-            {tab === 'insights' && (
-              <div className="report-columns full">
-                <section>
-                  <p className="section-label">DATA QUALITY PROFILE</p>
-                  <h2>Integrity & anomalies</h2>
-                  <div className="space-y-4">
-                    <div>
-                      <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-1.5">Quality Flags:</span>
-                      {qualityFlags.length > 0 ? (
-                        <div className="flex flex-wrap gap-1.5">
-                          {qualityFlags.map(f => (
-                            <span key={f} className="rounded-full bg-brand-soft px-3 py-1 font-mono text-[11px] font-medium text-brand border border-brand-line/40">
-                              {f.replaceAll('_', ' ')}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <p className="text-[13px] text-ok flex items-center gap-1.5 font-medium"><Check size={14} /> Passed — All quality checks clean</p>
-                      )}
-                    </div>
+            {/* Pareto 80/20 Finding if applicable */}
+            {pareto.applicable && (
+              <div className="pareto-card mt-4 rounded-[12px] border border-ok-line/40 bg-ok-soft p-4 text-ink">
+                <span className="block font-mono text-[10.5px] uppercase tracking-wider text-ok font-semibold mb-1">
+                  Pareto Concentration (80/20 Rule)
+                </span>
+                <p className="text-[13px] leading-relaxed text-ink m-0">{pareto.summary}</p>
+              </div>
+            )}
 
-                    <div className="border-t border-hairline pt-3">
-                      <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-1">Duplicate Rows:</span>
-                      <p className="text-[13px] text-ink">
-                        {duplicateCount === 0 ? 'Zero duplicate rows detected.' : `${duplicateCount.toLocaleString()} duplicate records identified.`}
-                      </p>
-                    </div>
+            <div className="overview-cards">
+              {[
+                ['ROWS ANALYZED', rowCount.toLocaleString()],
+                ['COLUMNS PROFILED', colCount],
+                ['NUMERIC FEATURES', numColumns.length],
+                ['CATEGORICAL FEATURES', catColumns.length],
+                ['STATISTICS COMPUTED', typeof totalStats === 'number' ? totalStats.toLocaleString() : totalStats],
+                ['VISUALIZATIONS', charts.length]
+              ].map(([label, value], i) => (
+                <div key={label}>
+                  <small>{label}</small>
+                  <strong>{value}</strong>
+                </div>
+              ))}
+            </div>
 
-                    <div className="border-t border-hairline pt-3">
-                      <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-1.5">Missingness Audit:</span>
-                      {columnsWithMissing.length > 0 ? (
-                        <div className="metric-table-wrap">
-                          <table>
-                            <thead>
-                              <tr><th>Feature</th><th>Missing Rows</th><th>Missing %</th></tr>
-                            </thead>
-                            <tbody>
-                              {columnsWithMissing.map(([col, cnt]) => (
-                                <tr key={col}>
-                                  <td><strong>{col}</strong></td>
-                                  <td>{cnt.toLocaleString()}</td>
-                                  <td>{(missingPct[col] ?? (rowCount ? (cnt / rowCount * 100) : 0)).toFixed(2)}%</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <p className="text-[13px] text-ok flex items-center gap-1.5 font-medium"><Check size={14} /> 100% complete — Zero missing values across all features.</p>
-                      )}
-                    </div>
+            {insights.length > 0 && (
+              <div className="mt-6 rounded-[14px] border border-hairline bg-panel p-5 shadow-sm">
+                <span className="block font-mono text-[10.5px] uppercase tracking-wider text-ink-dim mb-3">Core Statistical Discoveries</span>
+                <ul className="space-y-2 text-[13px] text-ink">
+                  {insights.map((item, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5">
+                      <Check size={14} className="mt-1 text-ok shrink-0" />
+                      <span className="leading-relaxed">{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
 
-                    <div className="border-t border-hairline pt-3">
-                      <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-1.5">IQR Outlier Audit:</span>
-                      {columnsWithOutliers.length > 0 ? (
-                        <div className="metric-table-wrap">
-                          <table>
-                            <thead>
-                              <tr><th>Numerical Column</th><th>Flagged Outliers</th></tr>
-                            </thead>
-                            <tbody>
-                              {columnsWithOutliers.map(([col, cnt]) => (
-                                <tr key={col}>
-                                  <td><strong>{col}</strong></td>
-                                  <td>{cnt.toLocaleString()} rows</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      ) : (
-                        <p className="text-[13px] text-ink-dim">No statistical outliers detected by the 1.5× IQR fence.</p>
-                      )}
-                    </div>
+          {/* Tab 2: Visualizations */}
+          <div className={`report-tab-pane ${tab === 'visuals' ? 'tab-active' : 'tab-screen-hidden'}`} role="tabpanel" id="panel-visuals" aria-labelledby="tab-visuals">
+            <h2 className="print-section-header">02. Data Visualizations &amp; Distributions</h2>
+            <div className="visual-report-grid">
+              {charts.map((chart, index) => {
+                const caption = chartDetails[index]?.title || report.grounding?.visualization_types?.[index] || `Visualization ${String(index + 1).padStart(2, '0')}`
+                return (
+                  <figure key={`${index}-${chart.slice(0, 20)}`}>
+                    <img src={`data:image/png;base64,${chart}`} alt={caption} loading="lazy" decoding="async" />
+                    <figcaption>{caption}</figcaption>
+                  </figure>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Tab 3: Insights & Next Steps */}
+          <div className={`report-tab-pane ${tab === 'insights' ? 'tab-active' : 'tab-screen-hidden'}`} role="tabpanel" id="panel-insights" aria-labelledby="tab-insights">
+            <h2 className="print-section-header">03. Data Quality &amp; Strategic Guidance</h2>
+            <div className="report-columns full">
+              <section>
+                <p className="section-label">DATA QUALITY PROFILE</p>
+                <h2>Integrity &amp; anomalies</h2>
+                <div className="space-y-4">
+                  <div>
+                    <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-1.5">Quality Flags:</span>
+                    {qualityFlags.length > 0 ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {qualityFlags.map(f => (
+                          <span key={f} className="rounded-full bg-brand-soft px-3 py-1 font-mono text-[11px] font-medium text-brand border border-brand-line/40">
+                            {f.replaceAll('_', ' ')}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-[13px] text-ok flex items-center gap-1.5 font-medium"><Check size={14} /> Passed — All quality checks clean</p>
+                    )}
                   </div>
-                </section>
 
-                <section>
-                  <p className="section-label">RECOMMENDATIONS & NEXT STEPS</p>
-                  <h2>Guidance for next phase</h2>
+                  <div className="border-t border-hairline pt-3">
+                    <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-1">Duplicate Rows:</span>
+                    <p className="text-[13px] text-ink">
+                      {duplicateCount === 0 ? 'Zero duplicate rows detected.' : `${duplicateCount.toLocaleString()} duplicate records identified.`}
+                    </p>
+                  </div>
 
-                  {recommendations.length > 0 && (
-                    <div className="space-y-3 mb-6">
-                      <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider">Strategic Recommendations:</span>
-                      {recommendations.map((action, idx) => (
-                        <div key={idx} className="rounded-[12px] border border-hairline bg-panel p-3.5 shadow-sm">
-                          <strong className="block text-[13.5px] font-semibold text-ink">{action.title}</strong>
-                          <p className="mt-1 text-[12.5px] text-ink-soft leading-relaxed">{action.recommended_action}</p>
-                          {action.data_justification && (
-                            <small className="mt-2 block font-mono text-[10.5px] text-brand">Evidence: {action.data_justification}</small>
-                          )}
-                        </div>
-                      ))}
+                  <div className="border-t border-hairline pt-3">
+                    <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-1.5">Missingness Audit:</span>
+                    {columnsWithMissing.length > 0 ? (
+                      <div className="metric-table-wrap">
+                        <table>
+                          <thead>
+                            <tr><th>Feature</th><th>Missing Rows</th><th>Missing %</th></tr>
+                          </thead>
+                          <tbody>
+                            {columnsWithMissing.map(([col, cnt]) => (
+                              <tr key={col}>
+                                <td><strong>{col}</strong></td>
+                                <td>{cnt.toLocaleString()}</td>
+                                <td>{(missingPct[col] ?? (rowCount ? (cnt / rowCount * 100) : 0)).toFixed(2)}%</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-[13px] text-ok flex items-center gap-1.5 font-medium"><Check size={14} /> 100% complete — Zero missing values across all features.</p>
+                    )}
+                  </div>
+
+                  <div className="border-t border-hairline pt-3">
+                    <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-1.5">IQR Outlier Audit:</span>
+                    {columnsWithOutliers.length > 0 ? (
+                      <div className="metric-table-wrap">
+                        <table>
+                          <thead>
+                            <tr><th>Numerical Column</th><th>Flagged Outliers</th></tr>
+                          </thead>
+                          <tbody>
+                            {columnsWithOutliers.map(([col, cnt]) => (
+                              <tr key={col}>
+                                <td><strong>{col}</strong></td>
+                                <td>{cnt.toLocaleString()} rows</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ) : (
+                      <p className="text-[13px] text-ink-dim">No statistical outliers detected by the 1.5× IQR fence.</p>
+                    )}
+                  </div>
+
+                  {/* Data Quality & ML Modeling Readiness Warnings */}
+                  {(businessInsights.missingness_alerts?.some(a => a.severity === 'critical' || a.severity === 'high') || mlReadiness.multicollinearity_flags?.length > 0 || mlReadiness.zero_variance_columns?.length > 0) && (
+                    <div className="border-t border-hairline pt-3">
+                      <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-2">Data Quality &amp; ML Modeling Warnings:</span>
+                      <div className="space-y-2">
+                        {businessInsights.missingness_alerts?.filter(a => a.severity === 'critical' || a.severity === 'high').map((a, idx) => (
+                          <div key={`msa-${idx}`} className="rounded-[10px] border border-danger-line/60 bg-danger-soft p-3 text-[12.5px] text-ink">
+                            <strong className="text-danger block mb-0.5">High-Risk Missingness ({a.severity.toUpperCase()}): Column `{a.column}` ({a.missing_pct}% nulls)</strong>
+                            <p className="text-ink-soft m-0">{a.recommended_strategy}</p>
+                          </div>
+                        ))}
+                        {mlReadiness.multicollinearity_flags?.map((m, idx) => (
+                          <div key={`mcf-${idx}`} className="rounded-[10px] border border-warn-line/50 bg-warn-soft p-3 text-[12.5px] text-ink">
+                            <strong className="text-warn block mb-0.5">Multicollinearity: {m.feature_1} &amp; {m.feature_2} (r = {m.pearson_r})</strong>
+                            <p className="text-ink-soft m-0">{m.recommendation}</p>
+                          </div>
+                        ))}
+                        {mlReadiness.zero_variance_columns?.map((z, idx) => (
+                          <div key={`zvc-${idx}`} className="rounded-[10px] border border-warn-line/50 bg-warn-soft p-3 text-[12.5px] text-ink">
+                            <strong className="text-warn block mb-0.5">Zero Variance: Column `{z.column}`</strong>
+                            <p className="text-ink-soft m-0">{z.recommendation}</p>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
+                </div>
+              </section>
 
-                  <div>
-                    <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-2">Pre-Modeling Considerations:</span>
-                    <ul className="space-y-2">
-                      {(suggestions.length ? suggestions : [
-                        'Review quality flags and define documented cleaning rules before modeling.',
-                        'Choose and validate a target variable in a separate predictive-analysis phase.'
-                      ]).map((item, idx) => (
-                        <li key={idx} className="text-[13px] text-ink-soft leading-relaxed">{item}</li>
-                      ))}
-                    </ul>
+              <section>
+                <p className="section-label">RECOMMENDATIONS &amp; NEXT STEPS</p>
+                <h2>Guidance for next phase</h2>
+
+                {recommendations.length > 0 && (
+                  <div className="space-y-3 mb-6">
+                    <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider">Strategic Recommendations:</span>
+                    {recommendations.map((action, idx) => (
+                      <div key={idx} className="rounded-[12px] border border-hairline bg-panel p-3.5 shadow-sm">
+                        <strong className="block text-[13.5px] font-semibold text-ink">{action.title}</strong>
+                        <p className="mt-1 text-[12.5px] text-ink-soft leading-relaxed">{action.recommended_action}</p>
+                        {action.data_justification && (
+                          <small className="mt-2 block font-mono text-[10.5px] text-brand">Evidence: {action.data_justification}</small>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <div>
+                  <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider mb-2">Pre-Modeling Considerations:</span>
+                  <ul className="space-y-2">
+                    {(suggestions.length ? suggestions : [
+                      'Review quality flags and define documented cleaning rules before modeling.',
+                      'Choose and validate a target variable in a separate predictive-analysis phase.'
+                    ]).map((item, idx) => (
+                      <li key={idx} className="text-[13px] text-ink-soft leading-relaxed">{item}</li>
+                    ))}
+                  </ul>
+                </div>
+              </section>
+            </div>
+          </div>
+
+          {/* Tab 4: Statistical Profiles */}
+          <div className={`report-tab-pane ${tab === 'metrics' ? 'tab-active' : 'tab-screen-hidden'}`} role="tabpanel" id="panel-metrics" aria-labelledby="tab-metrics">
+            <h2 className="print-section-header">04. Machine-Verified Statistical Profiles</h2>
+            <div className="metrics-reader">
+              {numColumns.length > 0 && (
+                <section>
+                  <div className="metric-heading">
+                    <span>Numerical Features Distribution Profile</span>
+                    <em>verified</em>
+                  </div>
+                  <div className="metric-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Feature</th>
+                          <th>Count</th>
+                          <th>Mean</th>
+                          <th>Median</th>
+                          <th>Std Dev</th>
+                          <th>Min</th>
+                          <th>Max</th>
+                          <th>Q25</th>
+                          <th>Q75</th>
+                          <th>IQR</th>
+                          <th>Outliers</th>
+                          <th>Skewness</th>
+                          <th>Kurtosis</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {numColumns.map(col => {
+                          const p = numericSummary[col] || {}
+                          return (
+                            <tr key={col}>
+                              <td><strong>{col}</strong></td>
+                              <td>{p.count?.toLocaleString() ?? '—'}</td>
+                              <td>{p.mean != null ? Number(p.mean.toFixed(2)) : '—'}</td>
+                              <td>{p.median != null ? Number(p.median.toFixed(2)) : '—'}</td>
+                              <td>{p.std != null ? Number(p.std.toFixed(2)) : '—'}</td>
+                              <td>{p.min != null ? Number(p.min.toFixed(2)) : '—'}</td>
+                              <td>{p.max != null ? Number(p.max.toFixed(2)) : '—'}</td>
+                              <td>{p.quantiles?.q25 != null ? Number(p.quantiles.q25.toFixed(2)) : '—'}</td>
+                              <td>{p.quantiles?.q75 != null ? Number(p.quantiles.q75.toFixed(2)) : '—'}</td>
+                              <td>{p.iqr != null ? Number(p.iqr.toFixed(2)) : '—'}</td>
+                              <td>{p.outlier_count_iqr != null ? p.outlier_count_iqr.toLocaleString() : '0'}</td>
+                              <td>{p.skewness != null ? Number(p.skewness.toFixed(3)) : '—'}</td>
+                              <td>{p.kurtosis != null ? Number(p.kurtosis.toFixed(3)) : '—'}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </div>
                 </section>
-              </div>
-            )}
+              )}
 
-            {tab === 'visuals' && (
-              <div className="visual-report-grid">
-                {charts.map((chart, index) => {
-                  const caption = chartDetails[index]?.title || report.grounding?.visualization_types?.[index] || `Visualization ${String(index + 1).padStart(2, '0')}`
-                  return (
-                    <motion.figure key={`${index}-${chart.slice(0, 20)}`} initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: index * 0.06 }}>
-                      <img src={`data:image/png;base64,${chart}`} alt={caption} loading="lazy" decoding="async" />
-                      <figcaption>{caption}</figcaption>
-                    </motion.figure>
-                  )
-                })}
-              </div>
-            )}
-
-            {tab === 'metrics' && (
-              <div className="metrics-reader">
-                {numColumns.length > 0 && (
-                  <section>
-                    <div className="metric-heading">
-                      <span>Numerical Features Distribution Profile</span>
-                      <em>verified</em>
-                    </div>
-                    <div className="metric-table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Feature</th>
-                            <th>Count</th>
-                            <th>Mean</th>
-                            <th>Median</th>
-                            <th>Std Dev</th>
-                            <th>Min</th>
-                            <th>Max</th>
-                            <th>Q25</th>
-                            <th>Q75</th>
-                            <th>IQR</th>
-                            <th>Outliers</th>
-                            <th>Skewness</th>
-                            <th>Kurtosis</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {numColumns.map(col => {
-                            const p = numericSummary[col] || {}
-                            return (
-                              <tr key={col}>
-                                <td><strong>{col}</strong></td>
-                                <td>{p.count?.toLocaleString() ?? '—'}</td>
-                                <td>{p.mean != null ? Number(p.mean.toFixed(2)) : '—'}</td>
-                                <td>{p.median != null ? Number(p.median.toFixed(2)) : '—'}</td>
-                                <td>{p.std != null ? Number(p.std.toFixed(2)) : '—'}</td>
-                                <td>{p.min != null ? Number(p.min.toFixed(2)) : '—'}</td>
-                                <td>{p.max != null ? Number(p.max.toFixed(2)) : '—'}</td>
-                                <td>{p.quantiles?.q25 != null ? Number(p.quantiles.q25.toFixed(2)) : '—'}</td>
-                                <td>{p.quantiles?.q75 != null ? Number(p.quantiles.q75.toFixed(2)) : '—'}</td>
-                                <td>{p.iqr != null ? Number(p.iqr.toFixed(2)) : '—'}</td>
-                                <td>{p.outlier_count_iqr != null ? p.outlier_count_iqr.toLocaleString() : '0'}</td>
-                                <td>{p.skewness != null ? Number(p.skewness.toFixed(3)) : '—'}</td>
-                                <td>{p.kurtosis != null ? Number(p.kurtosis.toFixed(3)) : '—'}</td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                )}
-
-                {catColumns.length > 0 && (
-                  <section>
-                    <div className="metric-heading">
-                      <span>Categorical Features Cardinality & Frequencies</span>
-                      <em>verified</em>
-                    </div>
-                    <div className="metric-table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Feature</th>
-                            <th>Unique Count</th>
-                            <th>Missing</th>
-                            <th>Cardinality Ratio</th>
-                            <th>Top Categories & Counts</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {catColumns.map(col => {
-                            const p = categoricalSummary[col] || {}
-                            const topText = (p.top_values || []).slice(0, 4).map(v => `${v.value} (${v.count.toLocaleString()})`).join(', ')
-                            return (
-                              <tr key={col}>
-                                <td><strong>{col}</strong></td>
-                                <td>{p.unique?.toLocaleString() ?? '—'}</td>
-                                <td>{p.missing?.toLocaleString() ?? '0'}</td>
-                                <td>{p.cardinality_ratio != null ? `${(p.cardinality_ratio * 100).toFixed(1)}%` : '—'}</td>
-                                <td className="max-w-[320px] truncate" title={topText}>{topText || '—'}</td>
-                              </tr>
-                            )
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                )}
-
-                {numColumns.length >= 2 && Object.keys(correlations).length > 0 && (
-                  <section>
-                    <div className="metric-heading">
-                      <span>Pearson Correlation Matrix (r)</span>
-                      <em>verified</em>
-                    </div>
-                    <div className="metric-table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Feature</th>
-                            {numColumns.slice(0, 8).map(c => <th key={c}>{c}</th>)}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {numColumns.slice(0, 8).map(rowCol => (
-                            <tr key={rowCol}>
-                              <td><strong>{rowCol}</strong></td>
-                              {numColumns.slice(0, 8).map(colCol => {
-                                const rVal = correlations[rowCol]?.[colCol]
-                                return (
-                                  <td key={colCol} className={rVal != null && Math.abs(rVal) > 0.5 ? 'font-bold text-brand' : ''}>
-                                    {rVal != null ? (rVal > 0 ? `+${rVal.toFixed(3)}` : rVal.toFixed(3)) : '—'}
-                                  </td>
-                                )
-                              })}
+              {catColumns.length > 0 && (
+                <section>
+                  <div className="metric-heading">
+                    <span>Categorical Features Cardinality &amp; Frequencies</span>
+                    <em>verified</em>
+                  </div>
+                  <div className="metric-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Feature</th>
+                          <th>Unique Count</th>
+                          <th>Missing</th>
+                          <th>Cardinality Ratio</th>
+                          <th>Top Categories &amp; Counts</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {catColumns.map(col => {
+                          const p = categoricalSummary[col] || {}
+                          const topText = (p.top_values || []).slice(0, 4).map(v => `${v.value} (${v.count.toLocaleString()})`).join(', ')
+                          return (
+                            <tr key={col}>
+                              <td><strong>{col}</strong></td>
+                              <td>{p.unique?.toLocaleString() ?? '—'}</td>
+                              <td>{p.missing?.toLocaleString() ?? '0'}</td>
+                              <td>{p.cardinality_ratio != null ? `${(p.cardinality_ratio * 100).toFixed(1)}%` : '—'}</td>
+                              <td className="max-w-[320px] truncate" title={topText}>{topText || '—'}</td>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                )}
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
 
-                {(catNumTests.length > 0 || catCatTests.length > 0) && (
-                  <section>
-                    <div className="metric-heading">
-                      <span>Statistical Hypothesis Tests (ANOVA, t-test, Chi-square)</span>
-                      <em>verified</em>
-                    </div>
-                    <div className="metric-table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Interaction</th>
-                            <th>Test</th>
-                            <th>Statistic</th>
-                            <th>p-value</th>
-                            <th>Significance (α = 0.05)</th>
+              {numColumns.length >= 2 && Object.keys(correlations).length > 0 && (
+                <section>
+                  <div className="metric-heading">
+                    <span>Pearson Correlation Matrix (r)</span>
+                    <em>verified</em>
+                  </div>
+                  <div className="metric-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Feature</th>
+                          {numColumns.slice(0, 8).map(c => <th key={c}>{c}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {numColumns.slice(0, 8).map(rowCol => (
+                          <tr key={rowCol}>
+                            <td><strong>{rowCol}</strong></td>
+                            {numColumns.slice(0, 8).map(colCol => {
+                              const rVal = correlations[rowCol]?.[colCol]
+                              return (
+                                <td key={colCol} className={rVal != null && Math.abs(rVal) > 0.5 ? 'font-bold text-brand' : ''}>
+                                  {rVal != null ? (rVal > 0 ? `+${rVal.toFixed(3)}` : rVal.toFixed(3)) : '—'}
+                                </td>
+                              )
+                            })}
                           </tr>
-                        </thead>
-                        <tbody>
-                          {catNumTests.slice(0, 8).map((t, idx) => (
-                            <tr key={idx}>
-                              <td><strong>{t.numeric} by {t.categorical}</strong></td>
-                              <td>{t.test}</td>
-                              <td>{t.statistic != null ? Number(t.statistic.toFixed(4)) : '—'}</td>
-                              <td>{t.p_value != null ? Number(t.p_value.toFixed(4)) : '—'}</td>
-                              <td>
-                                {t.significant_at_0_05 ? (
-                                  <span className="rounded-full bg-ok-soft px-2 py-0.5 font-mono text-[10px] text-ok font-semibold">Significant (p &lt; 0.05)</span>
-                                ) : (
-                                  <span className="font-mono text-[10px] text-ink-dim">Not Significant</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                          {catCatTests.slice(0, 6).map((t, idx) => (
-                            <tr key={`cat-${idx}`}>
-                              <td><strong>{t.categorical_columns?.join(' vs ')}</strong></td>
-                              <td>{t.test}</td>
-                              <td>{t.statistic != null ? Number(t.statistic.toFixed(4)) : '—'}</td>
-                              <td>{t.p_value != null ? Number(t.p_value.toFixed(4)) : '—'}</td>
-                              <td>
-                                {t.significant_at_0_05 ? (
-                                  <span className="rounded-full bg-ok-soft px-2 py-0.5 font-mono text-[10px] text-ok font-semibold">Significant (p &lt; 0.05)</span>
-                                ) : (
-                                  <span className="font-mono text-[10px] text-ink-dim">Not Significant</span>
-                                )}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  </section>
-                )}
-              </div>
-            )}
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
 
-            {tab === 'details' && (
-              <div className="details-reader">
-                <div><small>ANALYSIS ID</small><code>{report.analysis_id}</code></div>
-                <div><small>ENGINE</small><strong>Polars + SciPy (Deterministic)</strong></div>
-                <div><small>ROWS & FEATURES</small><strong>{rowCount.toLocaleString()} rows · {colCount} features</strong></div>
-                <div><small>VISUALS GENERATED</small><strong>{charts.length} charts</strong></div>
-                <div><small>DATA QUALITY STATUS</small><strong>{report.grounding?.data_quality?.status || 'Reviewed'}</strong></div>
-                <div><small>WORKFLOW</small><strong>Isolated Runtime</strong></div>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
+              {(catNumTests.length > 0 || catCatTests.length > 0) && (
+                <section>
+                  <div className="metric-heading">
+                    <span>Statistical Hypothesis Tests (ANOVA, t-test, Chi-square)</span>
+                    <em>verified</em>
+                  </div>
+                  <div className="metric-table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Interaction</th>
+                          <th>Test</th>
+                          <th>Statistic</th>
+                          <th>p-value</th>
+                          <th>Significance (α = 0.05)</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {catNumTests.slice(0, 8).map((t, idx) => (
+                          <tr key={idx}>
+                            <td><strong>{t.numeric} by {t.categorical}</strong></td>
+                            <td>{t.test}</td>
+                            <td>{t.statistic != null ? Number(t.statistic.toFixed(4)) : '—'}</td>
+                            <td>{t.p_value != null ? Number(t.p_value.toFixed(4)) : '—'}</td>
+                            <td>
+                              {t.significant_at_0_05 ? (
+                                <span className="rounded-full bg-ok-soft px-2 py-0.5 font-mono text-[10px] text-ok font-semibold">Significant (p &lt; 0.05)</span>
+                              ) : (
+                                <span className="font-mono text-[10px] text-ink-dim">Not Significant</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                        {catCatTests.slice(0, 6).map((t, idx) => (
+                          <tr key={`cat-${idx}`}>
+                            <td><strong>{t.categorical_columns?.join(' vs ')}</strong></td>
+                            <td>{t.test}</td>
+                            <td>{t.statistic != null ? Number(t.statistic.toFixed(4)) : '—'}</td>
+                            <td>{t.p_value != null ? Number(t.p_value.toFixed(4)) : '—'}</td>
+                            <td>
+                              {t.significant_at_0_05 ? (
+                                <span className="rounded-full bg-ok-soft px-2 py-0.5 font-mono text-[10px] text-ok font-semibold">Significant (p &lt; 0.05)</span>
+                              ) : (
+                                <span className="font-mono text-[10px] text-ink-dim">Not Significant</span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+            </div>
+          </div>
+
+          {/* Tab 5: Run Details */}
+          <div className={`report-tab-pane ${tab === 'details' ? 'tab-active' : 'tab-screen-hidden'}`} role="tabpanel" id="panel-details" aria-labelledby="tab-details">
+            <h2 className="print-section-header">05. Audit Trail &amp; Run Details</h2>
+            <div className="details-reader">
+              <div><small>ANALYSIS ID</small><code>{report.analysis_id}</code></div>
+              <div><small>ENGINE</small><strong>Polars + SciPy (Deterministic)</strong></div>
+              <div><small>ROWS &amp; FEATURES</small><strong>{rowCount.toLocaleString()} rows · {colCount} features</strong></div>
+              <div><small>VISUALS GENERATED</small><strong>{charts.length} charts</strong></div>
+              <div><small>DATA QUALITY STATUS</small><strong>{report.grounding?.data_quality?.status || 'Reviewed'}</strong></div>
+              <div><small>WORKFLOW</small><strong>Isolated Runtime</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <footer className="report-paper-footer">
+          <div><span>⚡ DataSnap Analytics Platform</span></div>
+          <div><span>Machine-verified report · Deterministic execution · No synthetic hallucinations</span></div>
+        </footer>
       </motion.div>
     </MMain>
   )

@@ -1,7 +1,44 @@
 """Pydantic schemas and contracts for all workflow stages."""
 
 from typing import List, Dict, Any, Optional
-from pydantic import BaseModel, Field
+
+try:
+    from pydantic import BaseModel, Field
+except ImportError:
+    class BaseModel:
+        def __init__(self, **kwargs: Any):
+            for cls in reversed(self.__class__.__mro__):
+                for k, v in getattr(cls, "__dict__", {}).items():
+                    if not k.startswith("_") and not callable(v):
+                        if isinstance(v, list):
+                            setattr(self, k, list(v))
+                        elif isinstance(v, dict):
+                            setattr(self, k, dict(v))
+                        else:
+                            setattr(self, k, v)
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+
+        def model_dump(self) -> dict[str, Any]:
+            res = {}
+            for k, v in self.__dict__.items():
+                if hasattr(v, "model_dump"):
+                    res[k] = v.model_dump()
+                elif isinstance(v, list):
+                    res[k] = [item.model_dump() if hasattr(item, "model_dump") else item for item in v]
+                else:
+                    res[k] = v
+            return res
+
+        def dict(self) -> dict[str, Any]:
+            return self.model_dump()
+
+    def Field(*args: Any, **kwargs: Any) -> Any:
+        default = kwargs.get("default", ...)
+        default_factory = kwargs.get("default_factory")
+        if default_factory is not None:
+            return default_factory()
+        return default if default is not ... else None
 
 
 class DatasetMinifiedContext(BaseModel):
@@ -62,3 +99,58 @@ class OutputSynthesis(BaseModel):
     answers_to_query: str = Field(description="Optional response to the analysis focus")
     recommended_actions: List[str] = Field(description="Evidence-backed EDA next actions")
     full_markdown_report: str = Field(description="Formatted EDA markdown artifact")
+
+
+class DataHealthSubScores(BaseModel):
+    completeness: float = Field(ge=0.0, le=100.0, description="Cell completeness score (0-100)")
+    uniqueness: float = Field(ge=0.0, le=100.0, description="Record uniqueness score (0-100)")
+    outlier_control: float = Field(ge=0.0, le=100.0, description="Outlier boundary control score (0-100)")
+    type_consistency: float = Field(ge=0.0, le=100.0, description="Type validity and non-constant feature score (0-100)")
+
+
+class DataHealthScore(BaseModel):
+    score: float = Field(ge=0.0, le=100.0, description="Deterministic overall Data Health Score (0-100)")
+    grade: str = Field(description="Rating grade: Excellent, Good, Moderate, or Critical")
+    rating_description: str = Field(description="Executive interpretation of the score")
+    sub_scores: DataHealthSubScores = Field(description="Component scores across four data dimensions")
+    total_cells: int = Field(default=0, description="Total matrix cells (rows * columns)")
+    total_nulls: int = Field(default=0, description="Count of missing/null values")
+    duplicate_rows: int = Field(default=0, description="Count of duplicate rows")
+    total_outliers: int = Field(default=0, description="Count of IQR outliers")
+    zero_variance_columns: List[str] = Field(default_factory=list, description="Zero-variance feature names")
+
+
+class ParetoAnalysisResult(BaseModel):
+    applicable: bool = Field(description="Whether Pareto concentration was applicable")
+    column: Optional[str] = Field(default=None, description="Volume/financial candidate feature analyzed")
+    is_pareto: bool = Field(default=False, description="True if top 20% records account for >= 60% of total volume")
+    top_20_pct_volume_share: Optional[float] = Field(default=None, ge=0.0, le=100.0, description="Percentage of total volume held by top 20% records")
+    pct_records_generating_80_pct: Optional[float] = Field(default=None, ge=0.0, le=100.0, description="Percentage of records generating 80% volume")
+    records_generating_80_pct: Optional[int] = Field(default=None, description="Number of records generating 80% volume")
+    total_records_evaluated: Optional[int] = Field(default=None, description="Total positive records analyzed")
+    total_volume: Optional[float] = Field(default=None, description="Total aggregated feature volume")
+    summary: Optional[str] = Field(default=None, description="Executive narrative of Pareto finding")
+    reason: Optional[str] = Field(default=None, description="Reason if not applicable")
+
+
+class MissingnessAlert(BaseModel):
+    column: str = Field(description="Feature with missing data")
+    missing_count: int = Field(description="Count of missing values")
+    missing_pct: float = Field(ge=0.0, le=100.0, description="Percentage of missing values (0-100)")
+    severity: str = Field(description="Severity tier: critical, high, medium, low")
+    recommended_strategy: str = Field(description="Recommended imputation or remediation strategy")
+
+
+class MLReadinessWarnings(BaseModel):
+    status: str = Field(description="Readiness status: ready or warnings_detected")
+    multicollinearity_flags: List[Dict[str, Any]] = Field(default_factory=list, description="Pairs with |r| > 0.85")
+    zero_variance_columns: List[Dict[str, Any]] = Field(default_factory=list, description="Zero-variance or single-value features")
+    high_cardinality_columns: List[Dict[str, Any]] = Field(default_factory=list, description="Features with >50 unique values or >0.5 ratio")
+    candidate_targets: List[Dict[str, Any]] = Field(default_factory=list, description="Candidate target features identified by heuristics")
+
+
+class BusinessInsights(BaseModel):
+    pareto_analysis: ParetoAnalysisResult
+    missingness_alerts: List[MissingnessAlert] = Field(default_factory=list)
+    ml_readiness: MLReadinessWarnings
+

@@ -53,7 +53,14 @@ def run_analysis(dataset_path: Path, query: str, provider: str | None, model: st
             "data_quality": final_state.get("data_quality", {}),
             "visualization_types": final_state.get("eda_artifacts", {}).get("visualization_types", []),
         }
-        markdown, html_report = build_report(synthesis, metrics, execution.get("base64_charts", []))
+        markdown, html_doc = build_report(
+            synthesis,
+            metrics,
+            execution.get("base64_charts", []),
+            analysis_id=analysis_id,
+            dataset_name=dataset_path.name,
+            chart_details=execution.get("chart_details", []),
+        )
         record.update({
             "status": "completed",
             "executive_summary": synthesis.get("executive_summary", ""),
@@ -67,7 +74,7 @@ def run_analysis(dataset_path: Path, query: str, provider: str | None, model: st
             "charts": execution.get("base64_charts", []),
             "chart_details": execution.get("chart_details", []),
             "markdown_report": markdown,
-            "html_report": html_report,
+            "html_report": html_doc,
         })
     except Exception as exc:
         message = str(exc)

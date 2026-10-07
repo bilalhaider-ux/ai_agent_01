@@ -447,15 +447,31 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
         finally:
             plt.close("all")
 
+    duplicate_row_count = int(df.is_duplicated().sum()) if df.height else 0
+    data_health = _calculate_data_health_score(
+        df, numeric, categorical, numeric_summary, categorical_summary, duplicate_row_count
+    )
+    pareto = _pareto_analysis(df, numeric)
+    missing_alerts = _missingness_alerts(df)
+    ml_readiness = _ml_readiness_warnings(
+        df, numeric, categorical, multivariate.get("pearson_correlation_matrix", {}), numeric_summary, categorical_summary
+    )
+
     quality_flags = []
     if df.height == 0:
         quality_flags.append("empty_dataset")
     if any(value for value in {name: df.get_column(name).null_count() for name in df.columns}.values()):
         quality_flags.append("missing_values_present")
-    if df.is_duplicated().sum():
+    if duplicate_row_count:
         quality_flags.append("duplicate_rows_present")
     if any(item["outlier_count_iqr"] for item in numeric_summary.values()):
         quality_flags.append("iqr_outliers_present")
+    if data_health["score"] < 75:
+        quality_flags.append(f"data_health_{data_health['grade'].lower()}")
+    if ml_readiness.get("multicollinearity_flags"):
+        quality_flags.append("multicollinearity_detected")
+    if ml_readiness.get("zero_variance_columns"):
+        quality_flags.append("zero_variance_features_present")
 
     return {
         "summary_type": "professional_non_graphical_and_visual_exploratory_data_analysis",
@@ -464,13 +480,20 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
             "column_count": df.width,
             "columns": df.columns,
             "dtypes": {name: str(dtype) for name, dtype in df.schema.items()},
+            "data_health": data_health,
+            "data_health_score": data_health["score"],
+            "business_insights": {
+                "pareto_analysis": pareto,
+                "missingness_alerts": missing_alerts,
+                "ml_readiness": ml_readiness,
+            },
             "missing_counts": {name: int(df.get_column(name).null_count()) for name in df.columns},
             "missing_percentages": {
                 name: round((df.get_column(name).null_count() / df.height) * 100, 4)
                 if df.height else None
                 for name in df.columns
             },
-            "duplicate_row_count": int(df.is_duplicated().sum()),
+            "duplicate_row_count": duplicate_row_count,
             "numeric_summary": numeric_summary,
             "categorical_summary": categorical_summary,
             "univariate": {
@@ -503,3 +526,314 @@ def run_eda(dataset_path: str | Path) -> dict[str, Any]:
         "charts": charts,
         "chart_details": chart_details,
     }
+
+
+def _calculate_data_health_score(
+    df: pl.DataFrame,
+    numeric: list[str],
+    categorical: list[str],
+    numeric_summary: dict[str, Any],
+    categorical_summary: dict[str, Any],
+    duplicate_rows: int,
+) -> dict[str, Any]:
+    row_count = df.height
+    col_count = df.width
+    total_cells = row_count * col_count if row_count and col_count else 0
+
+    if row_count == 0:
+        return {
+            "score": 0.0,
+            "grade": "Critical",
+            "rating_description": "Dataset is empty (zero records).",
+            "sub_scores": {
+                "completeness": 0.0,
+                "uniqueness": 0.0,
+                "outlier_control": 0.0,
+                "type_consistency": 0.0,
+            },
+            "total_cells": 0,
+            "total_nulls": 0,
+            "duplicate_rows": 0,
+            "total_outliers": 0,
+            "zero_variance_columns": [],
+        }
+
+    total_nulls = sum(int(df.get_column(c).null_count()) for c in df.columns)
+    null_rate = total_nulls / total_cells if total_cells else 1.0
+    completeness_score = round(max(0.0, min(100.0, (1.0 - null_rate) * 100.0)), 1)
+
+    if row_count == 0:
+        uniqueness_score = 0.0
+    else:
+        dup_rate = duplicate_rows / row_count
+        uniqueness_score = round(max(0.0, min(100.0, (1.0 - dup_rate) * 100.0)), 1)
+
+    total_numeric_values = sum(numeric_summary[c].get("count", 0) for c in numeric)
+    total_iqr_outliers = sum(numeric_summary[c].get("outlier_count_iqr", 0) for c in numeric)
+    if total_numeric_values == 0:
+        outlier_score = 100.0
+    else:
+        outlier_rate = total_iqr_outliers / total_numeric_values
+        outlier_score = round(max(0.0, min(100.0, (1.0 - min(1.0, outlier_rate * 2.0)) * 100.0)), 1)
+
+    penalties = 0.0
+    zero_var_cols = []
+    for c in numeric:
+        std = numeric_summary[c].get("std")
+        val_min = numeric_summary[c].get("min")
+        val_max = numeric_summary[c].get("max")
+        if (std == 0.0 or (val_min is not None and val_min == val_max)) and numeric_summary[c].get("count", 0) > 1:
+            zero_var_cols.append(c)
+            penalties += 15.0
+    for c in categorical:
+        uniq = categorical_summary[c].get("unique", 0)
+        if uniq <= 1 and row_count > 1:
+            penalties += 10.0
+    if row_count > 0:
+        for c in df.columns:
+            if df.get_column(c).null_count() == row_count:
+                penalties += 20.0
+    type_score = round(max(0.0, min(100.0, 100.0 - penalties)), 1)
+
+    overall_score = round(
+        completeness_score * 0.30 +
+        uniqueness_score * 0.25 +
+        outlier_score * 0.25 +
+        type_score * 0.20,
+        1
+    )
+
+    if overall_score >= 90:
+        grade = "Excellent"
+        rating_description = "High integrity, production & modeling ready"
+    elif overall_score >= 75:
+        grade = "Good"
+        rating_description = "Robust quality with minor remediation recommended"
+    elif overall_score >= 50:
+        grade = "Moderate"
+        rating_description = "Data cleansing & outlier controls required before modeling"
+    else:
+        grade = "Critical"
+        rating_description = "Substantial quality deficits detected; manual remediation required"
+
+    return {
+        "score": overall_score,
+        "grade": grade,
+        "rating_description": rating_description,
+        "sub_scores": {
+            "completeness": completeness_score,
+            "uniqueness": uniqueness_score,
+            "outlier_control": outlier_score,
+            "type_consistency": type_score,
+        },
+        "total_cells": total_cells,
+        "total_nulls": total_nulls,
+        "duplicate_rows": duplicate_rows,
+        "total_outliers": total_iqr_outliers,
+        "zero_variance_columns": zero_var_cols,
+    }
+
+
+def _pareto_analysis(df: pl.DataFrame, numeric: list[str]) -> dict[str, Any]:
+    """Identify 80/20 concentration patterns on financial or volume measures."""
+    if df.height < 5 or not numeric:
+        return {
+            "applicable": False,
+            "reason": "Insufficient records or numerical features for concentration analysis."
+        }
+
+    priority_keywords = ["revenue", "sales", "price", "amount", "total", "cost", "quantity", "units", "spend", "profit"]
+    candidates = []
+    for c in numeric:
+        c_lower = c.lower()
+        score = 0
+        for kw in priority_keywords:
+            if kw in c_lower:
+                score += 10
+        s = df.get_column(c).drop_nulls()
+        if s.len() > 0 and (s >= 0).sum() / s.len() >= 0.95 and (s.sum() or 0) > 0:
+            score += 5
+            candidates.append((score, c))
+
+    if not candidates:
+        for c in numeric:
+            s = df.get_column(c).drop_nulls()
+            if s.len() > 0 and (s >= 0).sum() / s.len() >= 0.95 and (s.sum() or 0) > 0:
+                candidates.append((1, c))
+                break
+
+    if not candidates:
+        return {
+            "applicable": False,
+            "reason": "No positive volume or financial candidate column found."
+        }
+
+    # Deterministic sorting by score descending, then column name ascending
+    candidates.sort(key=lambda x: (-x[0], x[1]))
+    target_col = candidates[0][1]
+
+    sorted_vals = df.select(target_col).drop_nulls().filter(pl.col(target_col) > 0).sort(target_col, descending=True)
+    n = sorted_vals.height
+    if n < 5:
+        return {
+            "applicable": False,
+            "column": target_col,
+            "reason": "Fewer than 5 positive observations."
+        }
+
+    total_val = float(sorted_vals[target_col].sum() or 0.0)
+    if total_val <= 0:
+        return {
+            "applicable": False,
+            "column": target_col,
+            "reason": "Total volume sum is zero."
+        }
+
+    cum_series = sorted_vals[target_col].cum_sum()
+    target_80 = total_val * 0.80
+
+    rows_for_80 = min(n, int((cum_series < target_80).sum()) + 1)
+    pct_rows_for_80 = round(min(100.0, max(0.0, (rows_for_80 / n) * 100.0)), 1)
+
+    top_20_count = min(n, max(1, int(n * 0.20)))
+    top_20_sum = float(sorted_vals.head(top_20_count)[target_col].sum() or 0.0)
+    top_20_share = round(min(100.0, max(0.0, (top_20_sum / total_val) * 100.0)), 1)
+
+    is_pareto = top_20_share >= 60.0
+
+    return {
+        "applicable": True,
+        "column": target_col,
+        "is_pareto": is_pareto,
+        "top_20_pct_volume_share": top_20_share,
+        "pct_records_generating_80_pct": pct_rows_for_80,
+        "records_generating_80_pct": rows_for_80,
+        "total_records_evaluated": n,
+        "total_volume": round(total_val, 2),
+        "summary": (
+            f"Top 20% of records account for {top_20_share}% of total `{target_col}`. "
+            f"80% of total volume is concentrated in {pct_rows_for_80}% of observations "
+            f"({rows_for_80:,} of {n:,} records)."
+        )
+    }
+
+
+def _missingness_alerts(df: pl.DataFrame) -> list[dict[str, Any]]:
+    n = df.height
+    alerts = []
+    if n == 0:
+        return alerts
+    for col in df.columns:
+        null_cnt = int(df.get_column(col).null_count())
+        if null_cnt > 0:
+            pct = round((null_cnt / n) * 100.0, 2)
+            if pct >= 50.0:
+                severity = "critical"
+                strategy = "Drop column (exceeds 50% missingness threshold) or investigate systemic data ingestion failure."
+            elif pct >= 20.0:
+                severity = "high"
+                strategy = "Profile missingness mechanism (MCAR vs MAR/MNAR); domain-approved imputation or dedicated missingness indicator required."
+            elif pct >= 5.0:
+                severity = "medium"
+                strategy = "Apply robust central tendency imputation (median/mode) or predictive model-based imputation."
+            else:
+                severity = "low"
+                strategy = "Simple mean/median/mode imputation or listwise record deletion."
+
+            alerts.append({
+                "column": col,
+                "missing_count": null_cnt,
+                "missing_pct": pct,
+                "severity": severity,
+                "recommended_strategy": strategy,
+            })
+    alerts.sort(key=lambda x: x["missing_pct"], reverse=True)
+    return alerts
+
+
+def _ml_readiness_warnings(
+    df: pl.DataFrame,
+    numeric: list[str],
+    categorical: list[str],
+    correlations: dict[str, dict[str, float | None]],
+    numeric_summary: dict[str, Any],
+    categorical_summary: dict[str, Any],
+) -> dict[str, Any]:
+    n = df.height
+    multicollinearity_flags = []
+    zero_variance_flags = []
+    high_cardinality_flags = []
+
+    # 1. Multicollinearity: |r| > 0.85
+    seen_pairs = set()
+    for col1, row in correlations.items():
+        for col2, r_val in row.items():
+            if col1 != col2 and r_val is not None and abs(r_val) > 0.85:
+                pair_key = tuple(sorted([col1, col2]))
+                if pair_key not in seen_pairs:
+                    seen_pairs.add(pair_key)
+                    clamped_r = max(-1.0, min(1.0, r_val))
+                    multicollinearity_flags.append({
+                        "feature_1": pair_key[0],
+                        "feature_2": pair_key[1],
+                        "pearson_r": round(clamped_r, 4),
+                        "recommendation": f"Severe multicollinearity (|r| = {abs(clamped_r):.2f} > 0.85). Remove one feature or apply PCA/regularization before linear modeling.",
+                    })
+
+    # 2. Zero-variance & Constant features
+    for col in numeric:
+        p = numeric_summary.get(col, {})
+        std = p.get("std")
+        val_min = p.get("min")
+        val_max = p.get("max")
+        if (std == 0.0 or (val_min is not None and val_min == val_max)) and p.get("count", 0) > 1:
+            zero_variance_flags.append({
+                "column": col,
+                "type": "numeric",
+                "constant_value": val_min,
+                "recommendation": "Zero variance detected (all values identical). Drop feature as it provides zero predictive information.",
+            })
+
+    for col in categorical:
+        p = categorical_summary.get(col, {})
+        if p.get("unique", 0) <= 1 and n > 1:
+            zero_variance_flags.append({
+                "column": col,
+                "type": "categorical",
+                "constant_value": p.get("top_values", [{}])[0].get("value") if p.get("top_values") else None,
+                "recommendation": "Zero categorical diversity (only 1 unique value). Drop before training.",
+            })
+
+    # 3. High cardinality text / IDs
+    for col in categorical:
+        p = categorical_summary.get(col, {})
+        unique_cnt = p.get("unique", 0)
+        card_ratio = p.get("cardinality_ratio") or 0.0
+        if unique_cnt > 50 or card_ratio > 0.5:
+            high_cardinality_flags.append({
+                "column": col,
+                "unique_count": unique_cnt,
+                "cardinality_ratio": round(card_ratio, 4),
+                "recommendation": "High cardinality feature. One-hot encoding will expand dimensionality uncontrollably; consider frequency encoding, target encoding, or entity embeddings.",
+            })
+
+    candidate_targets = []
+    for col in numeric:
+        col_lower = col.lower()
+        if any(term in col_lower for term in ["revenue", "sales", "price", "profit", "target", "churn", "score", "rating"]):
+            candidate_targets.append({"column": col, "task": "Regression / Forecasting", "type": "numeric"})
+    for col in categorical:
+        col_lower = col.lower()
+        if categorical_summary.get(col, {}).get("unique", 0) in [2, 3]:
+            candidate_targets.append({"column": col, "task": "Classification", "type": "categorical"})
+
+    is_ready = len(zero_variance_flags) == 0 and len(multicollinearity_flags) == 0
+
+    return {
+        "status": "ready" if is_ready else "warnings_detected",
+        "multicollinearity_flags": multicollinearity_flags,
+        "zero_variance_columns": zero_variance_flags,
+        "high_cardinality_columns": high_cardinality_flags,
+        "candidate_targets": candidate_targets,
+    }
+

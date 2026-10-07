@@ -2104,3 +2104,468 @@ textarea:focus-visible,
 .report-columns.full h2 {
   font-weight: 500;
 }
+
+/* ------------------------------------------- Report Tabs & Print Support -- */
+.tab-screen-hidden { display: none !important; }
+.tab-active { display: block !important; }
+.print-section-header { display: none; }
+
+/* ------------------------------------- Data Health Scorecard Component -- */
+.health-scorecard {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  padding: 22px 24px;
+  box-shadow: var(--shadow-sm);
+}
+.health-score-main {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+.health-score-badge {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 12px;
+  padding: 12px 18px;
+  min-width: 90px;
+}
+.health-score-num {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 28px;
+  color: var(--accent);
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+.health-score-denom {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-left: 2px;
+}
+.health-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.health-pill.grade-excellent {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border: 1px solid rgba(15, 157, 107, 0.3);
+}
+.health-pill.grade-good {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border: 1px solid var(--accent-line);
+}
+.health-pill.grade-moderate {
+  background: var(--warn-soft);
+  color: var(--warn);
+  border: 1px solid var(--warn-line);
+}
+.health-pill.grade-critical {
+  background: var(--danger-soft);
+  color: var(--danger);
+  border: 1px solid var(--danger-line);
+}
+.health-subscores-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+.subscore-cell {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 10px 12px;
+}
+.subscore-cell small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  color: var(--text-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.subscore-cell strong {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--text);
+  margin-top: 3px;
+}
+
+@media (max-width: 700px) {
+  .health-subscores-grid { grid-template-columns: repeat(2, 1fr); }
+  .health-score-main { flex-direction: column; align-items: flex-start; }
+}
+
+/* -------------------------------------- Report Executive Header & Footer -- */
+.report-executive-head {
+  padding-bottom: 22px;
+  border-bottom: 2px solid var(--line);
+}
+.report-brand-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--hairline);
+}
+.report-brand-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.report-brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--accent), #7c3aed);
+  border-radius: 8px;
+  color: #fff;
+  font-weight: 800;
+  font-size: 14px;
+  box-shadow: var(--shadow-sm);
+}
+.report-brand-title {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.2;
+}
+.report-brand-sub {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.report-audit-pills {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.report-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-family: var(--font-mono);
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.report-pill.pill-brand {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-color: var(--accent-line);
+}
+.report-pill.pill-success {
+  background: var(--ok-soft);
+  color: var(--ok);
+  border-color: var(--ok-line);
+}
+.report-pill.pill-neutral {
+  background: var(--surface);
+  color: var(--text-soft);
+  border-color: var(--line);
+}
+.report-lead-block {
+  margin-top: 18px;
+}
+.report-lead-block h1 {
+  font-size: 26px;
+  font-weight: 700;
+  margin: 6px 0;
+  color: var(--text);
+}
+.report-lead-block p {
+  color: var(--text-soft);
+  font-size: 13.5px;
+  margin: 0;
+}
+.report-meta-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px solid var(--hairline);
+}
+.report-meta-cell small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 2px;
+}
+.report-meta-cell strong {
+  display: block;
+  font-size: 12.5px;
+  color: var(--text);
+  font-weight: 600;
+  word-break: break-all;
+}
+.report-meta-cell code {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--accent);
+}
+.report-paper-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 32px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-dim);
+}
+@media (max-width: 760px) {
+  .report-meta-grid { grid-template-columns: repeat(2, 1fr); }
+  .report-brand-bar { flex-direction: column; align-items: flex-start; }
+}
+
+/* --------------------------------- Executive A4 Print / PDF Engine Styles -- */
+@page {
+  size: A4;
+  margin: 16mm 14mm 16mm 14mm;
+  @top-left {
+    content: "DataSnap · Executive EDA Report";
+    font-family: var(--font-mono, monospace);
+    font-size: 8pt;
+    color: #64748b;
+  }
+  @top-right {
+    content: "Deterministic SciPy Engine · Verified Polars Execution";
+    font-family: var(--font-mono, monospace);
+    font-size: 8pt;
+    color: #64748b;
+  }
+  @bottom-left {
+    content: "Confidential · Machine-Verified Analytical Artifact";
+    font-family: var(--font-mono, monospace);
+    font-size: 8pt;
+    color: #64748b;
+  }
+  @bottom-right {
+    content: "Page " counter(page);
+    font-family: var(--font-mono, monospace);
+    font-size: 8pt;
+    color: #64748b;
+  }
+}
+
+@media print {
+  /* Enforce clean light palette even if dark mode is active in browser */
+  :root {
+    --bg-page: #ffffff !important;
+    --panel: #ffffff !important;
+    --surface: #f8fafc !important;
+    --text: #0f172a !important;
+    --text-soft: #334155 !important;
+    --text-dim: #64748b !important;
+    --line: #e2e8f0 !important;
+    --hairline: #e2e8f0 !important;
+    --accent: #4f46e5 !important;
+    --accent-soft: #eef2ff !important;
+    --accent-line: #c7d2fe !important;
+    --ok: #059669 !important;
+    --ok-soft: #ecfdf5 !important;
+    --ok-line: #a7f3d0 !important;
+    --warn: #d97706 !important;
+    --warn-soft: #fffbeb !important;
+    --warn-line: #fde68a !important;
+    --danger: #dc2626 !important;
+    --danger-soft: #fef2f2 !important;
+    --danger-line: #fecaca !important;
+    color-scheme: light !important;
+  }
+
+  /* Complete eradication of interactive web studio chrome */
+  .site-nav,
+  .site-header,
+  .report-page-nav,
+  .report-tabs,
+  .site-footer,
+  .aurora,
+  .scroll-progress,
+  .toast,
+  .scrim,
+  .sidebar,
+  button,
+  .save-button,
+  .outline-button {
+    display: none !important;
+  }
+
+  /* Reset document for clean white paper printing */
+  html, body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    font-size: 10pt !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .app-shell,
+  .report-page,
+  main {
+    padding: 0 !important;
+    margin: 0 !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    background: transparent !important;
+  }
+
+  .report-paper {
+    border: none !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    border-radius: 0 !important;
+    overflow: visible !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .report-executive-head,
+  .report-paper-head {
+    background: transparent !important;
+    padding: 12px 0 20px !important;
+    border-bottom: 2px solid #cbd5e1 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .report-content {
+    padding: 16px 0 !important;
+  }
+
+  /* Reveal all tabs sequentially with clean section titles */
+  .report-tab-pane,
+  .tab-screen-hidden,
+  .tab-active {
+    display: block !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .print-section-header {
+    display: block !important;
+    font-size: 14pt !important;
+    font-weight: 700 !important;
+    color: #0f172a !important;
+    margin: 28px 0 14px !important;
+    padding-bottom: 6px !important;
+    border-bottom: 1.5px solid #cbd5e1 !important;
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+    page-break-before: auto !important;
+    break-before: auto !important;
+  }
+
+  /* Card and table print protection */
+  .health-scorecard,
+  .overview-cards,
+  .overview-cards > div,
+  .pareto-card,
+  .report-lead,
+  .report-answer,
+  tr,
+  figure,
+  .visual-report-grid,
+  .details-reader {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    box-shadow: none !important;
+    border-color: #cbd5e1 !important;
+  }
+
+  .metric-table-wrap {
+    overflow: visible !important;
+    border: none !important;
+  }
+
+  .metric-table-wrap table,
+  table {
+    width: 100% !important;
+    font-size: 7.5pt !important;
+    border-collapse: collapse !important;
+  }
+
+  .metric-table-wrap th,
+  .metric-table-wrap td,
+  th,
+  td {
+    padding: 3pt 4pt !important;
+    white-space: normal !important;
+    word-break: break-word !important;
+  }
+
+  thead {
+    display: table-header-group !important;
+  }
+
+  th {
+    font-size: 7pt !important;
+    background: #f1f5f9 !important;
+    color: #334155 !important;
+  }
+
+  .visual-report-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  h1, h2, h3, h4 {
+    page-break-after: avoid !important;
+    break-after: avoid !important;
+  }
+
+  .report-paper-footer {
+    display: flex !important;
+    justify-content: space-between !important;
+    border-top: 1px solid #cbd5e1 !important;
+    padding-top: 12px !important;
+    margin-top: 28px !important;
+    font-size: 8pt !important;
+    color: #64748b !important;
+    page-break-before: auto !important;
+  }
+
+  /* High fidelity print colors */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
