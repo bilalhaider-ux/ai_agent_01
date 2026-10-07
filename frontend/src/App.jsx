@@ -1421,8 +1421,8 @@ function ReportPage({ report, saved, onSave, onBack, download }) {
 
   const tabs = [
     ['overview', 'Summary'],
-    ['insights', 'Quality & Next Steps'],
     ['visuals', 'Visualizations'],
+    ['insights', 'Quality & Next Steps'],
     ['metrics', 'Statistical Profiles'],
     ['details', 'Run Details']
   ]
@@ -1718,15 +1718,22 @@ function ReportPage({ report, saved, onSave, onBack, download }) {
                 {recommendations.length > 0 && (
                   <div className="space-y-3 mb-6">
                     <span className="block font-mono text-[11px] text-ink-dim uppercase tracking-wider">Strategic Recommendations:</span>
-                    {recommendations.map((action, idx) => (
-                      <div key={idx} className="rounded-[12px] border border-hairline bg-panel p-3.5 shadow-sm">
-                        <strong className="block text-[13.5px] font-semibold text-ink">{action.title}</strong>
-                        <p className="mt-1 text-[12.5px] text-ink-soft leading-relaxed">{action.recommended_action}</p>
-                        {action.data_justification && (
-                          <small className="mt-2 block font-mono text-[10.5px] text-brand">Evidence: {action.data_justification}</small>
-                        )}
-                      </div>
-                    ))}
+                    {recommendations.map((action, idx) => {
+                      const title = typeof action === 'object' && action !== null ? action.title : String(action)
+                      const recAction = typeof action === 'object' && action !== null ? action.recommended_action : ''
+                      const evidence = typeof action === 'object' && action !== null ? action.data_justification : ''
+                      return (
+                        <div key={idx} className="rounded-[12px] border border-hairline bg-panel p-3.5 shadow-sm">
+                          <strong className="block text-[13.5px] font-semibold text-ink">{title}</strong>
+                          {recAction && (
+                            <p className="mt-1 text-[12.5px] text-ink-soft leading-relaxed">{recAction}</p>
+                          )}
+                          {evidence && (
+                            <small className="mt-2 block font-mono text-[10.5px] text-brand">Evidence: {evidence}</small>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 

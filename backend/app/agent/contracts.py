@@ -7,7 +7,9 @@ try:
 except ImportError:
     class BaseModel:
         def __init__(self, **kwargs: Any):
+            annotations = {}
             for cls in reversed(self.__class__.__mro__):
+                annotations.update(getattr(cls, "__annotations__", {}))
                 for k, v in getattr(cls, "__dict__", {}).items():
                     if not k.startswith("_") and not callable(v):
                         if isinstance(v, list):
@@ -17,17 +19,24 @@ except ImportError:
                         else:
                             setattr(self, k, v)
             for k, v in kwargs.items():
+                expected_type = annotations.get(k)
+                if isinstance(expected_type, type) and issubclass(expected_type, BaseModel) and isinstance(v, dict):
+                    v = expected_type(**v)
                 setattr(self, k, v)
 
         def model_dump(self) -> dict[str, Any]:
+            def _dump(item: Any) -> Any:
+                if hasattr(item, "model_dump"):
+                    return item.model_dump()
+                elif isinstance(item, list):
+                    return [_dump(x) for x in item]
+                elif isinstance(item, dict):
+                    return {k: _dump(val) for k, val in item.items()}
+                return item
+
             res = {}
             for k, v in self.__dict__.items():
-                if hasattr(v, "model_dump"):
-                    res[k] = v.model_dump()
-                elif isinstance(v, list):
-                    res[k] = [item.model_dump() if hasattr(item, "model_dump") else item for item in v]
-                else:
-                    res[k] = v
+                res[k] = _dump(v)
             return res
 
         def dict(self) -> dict[str, Any]:

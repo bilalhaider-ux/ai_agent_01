@@ -3,10 +3,13 @@
 import os
 from typing import Literal, Optional
 from dataclasses import dataclass
-from dotenv import load_dotenv
+try:
+    from dotenv import load_dotenv
 
-# Load .env file if available
-load_dotenv()
+    # Load .env file if available
+    load_dotenv()
+except ImportError:
+    pass
 
 ProviderType = Literal["mistral", "gemini", "ollama", "openai", "mock"]
 

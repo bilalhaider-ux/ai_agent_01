@@ -4,19 +4,21 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from unittest.mock import patch
 
-from fastapi.testclient import TestClient
+try:
+    from fastapi.testclient import TestClient
+    from app.main import app
+    HAS_FASTAPI = True
+except ImportError:
+    HAS_FASTAPI = False
 
 from app.agent.llm import get_llm
-from app.agent.minifier import minify_dataset
-from app.main import app
+try:
+    from app.agent.minifier import minify_dataset
+except ImportError:
+    minify_dataset = None
 
 
-class TestApi(unittest.TestCase):
-    def test_health_and_missing_report(self):
-        client = TestClient(app)
-        self.assertEqual(client.get("/health").status_code, 200)
-        self.assertEqual(client.get("/api/v1/reports/missing").status_code, 404)
-
+class TestLlmConfig(unittest.TestCase):
     def test_mistral_requires_key(self):
         with patch.dict(os.environ, {"MISTRAL_API_KEY": ""}, clear=False):
             with self.assertRaisesRegex(ValueError, "MISTRAL_API_KEY"):
@@ -26,6 +28,14 @@ class TestApi(unittest.TestCase):
         with patch.dict(os.environ, {"GEMINI_API_KEY": "", "GOOGLE_API_KEY": ""}, clear=False):
             with self.assertRaisesRegex(ValueError, "GEMINI_API_KEY"):
                 get_llm(provider="gemini")
+
+
+@unittest.skipUnless(HAS_FASTAPI, "fastapi not installed")
+class TestApi(unittest.TestCase):
+    def test_health_and_missing_report(self):
+        client = TestClient(app)
+        self.assertEqual(client.get("/health").status_code, 200)
+        self.assertEqual(client.get("/api/v1/reports/missing").status_code, 404)
 
     def test_mock_analysis_api_returns_reports(self):
         client = TestClient(app)

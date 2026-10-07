@@ -133,13 +133,18 @@ def stage6_output_synthesis(state: AgentState) -> Dict[str, Any]:
     strongest_rel = non_graphical.get("multivariate", {}).get("strongest_numeric_relationships", [])
     if strongest_rel:
         top_pair = strongest_rel[0]
-        insights.append(f"Strongest numeric correlation: {top_pair['columns'][0]} & {top_pair['columns'][1]} (Pearson r = {top_pair['pearson_r']:.3f}).")
+        cols = top_pair.get("columns", ["feature_1", "feature_2"])
+        r_val = top_pair.get("pearson_r")
+        r_str = f"{r_val:.3f}" if isinstance(r_val, (int, float)) else str(r_val)
+        insights.append(f"Strongest numeric correlation: {cols[0]} & {cols[1]} (Pearson r = {r_str}).")
 
     stat_tests = non_graphical.get("statistical_tests", {}).get("categorical_numeric_tests", [])
     sig_tests = [t for t in stat_tests if t.get("significant_at_0_05")]
     if sig_tests:
         t = sig_tests[0]
-        insights.append(f"Statistically significant difference ({t['test']}): {t['numeric']} grouped by {t['categorical']} (p = {t['p_value']:.4f}).")
+        p_val = t.get("p_value")
+        p_str = f"{p_val:.4f}" if isinstance(p_val, (int, float)) else str(p_val)
+        insights.append(f"Statistically significant difference ({t.get('test')}): {t.get('numeric')} grouped by {t.get('categorical')} (p = {p_str}).")
 
     exec_summary = f"Exploratory data analysis of {row_count:,} rows and {col_count} features completed. "
     if health_score is not None:

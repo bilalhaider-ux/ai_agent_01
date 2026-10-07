@@ -22,6 +22,25 @@ def _number(value: Any) -> str:
     return _text(value)
 
 
+def _format_float(value: Any, fmt: str = ".4f", fallback: str = "—") -> str:
+    if value is None:
+        return fallback
+    try:
+        val = float(value)
+        return f"{val:{fmt}}"
+    except (ValueError, TypeError):
+        return _text(value)
+
+
+def _format_pct(value: Any, default: float = 100.0) -> str:
+    if value is None:
+        value = default
+    try:
+        return f"{float(value):.1f}%"
+    except (ValueError, TypeError):
+        return f"{value}%"
+
+
 def _metric_table(value: Any) -> str:
     if not isinstance(value, dict):
         if isinstance(value, list) and value and all(isinstance(item, dict) for item in value):
@@ -171,19 +190,22 @@ def build_strategic_recommendations(metrics: dict[str, Any]) -> list[dict[str, s
     # 2. Multicollinearity risk
     if ml_readiness.get("multicollinearity_flags"):
         flag = ml_readiness["multicollinearity_flags"][0]
+        r_str = _format_float(flag.get("pearson_r"), ".4f", fallback="high")
         actions.append({
             "title": "Mitigate severe feature multicollinearity",
-            "recommended_action": flag["recommendation"],
-            "data_justification": f"Pearson correlation between `{flag['feature_1']}` and `{flag['feature_2']}` is r = {flag['pearson_r']:.4f} (|r| > 0.85).",
+            "recommended_action": flag.get("recommendation", "Address high correlation before linear modeling."),
+            "data_justification": f"Pearson correlation between `{flag.get('feature_1')}` and `{flag.get('feature_2')}` is r = {r_str} (|r| > 0.85).",
             "business_reason": "Extreme multicollinearity inflates standard errors, creates unstable coefficients, and prevents reliable driver attribution.",
         })
 
     # 3. Pareto 80/20 concentration
     if pareto.get("applicable") and pareto.get("is_pareto"):
+        vol = pareto.get("total_volume")
+        vol_str = f"{vol:,}" if isinstance(vol, (int, float)) else (str(vol) if vol is not None else "0")
         actions.append({
             "title": f"Focus operations on 80/20 {pareto.get('column')} concentration",
             "recommended_action": f"Structure priority workflows around the top {pareto.get('pct_records_generating_80_pct')}% of records generating 80% of volume.",
-            "data_justification": f"Top 20% of records account for {pareto.get('top_20_pct_volume_share')}% of aggregate `{pareto.get('column')}` volume ({(pareto.get('total_volume') or 0):,}).",
+            "data_justification": f"Top 20% of records account for {pareto.get('top_20_pct_volume_share')}% of aggregate `{pareto.get('column')}` volume ({vol_str}).",
             "business_reason": "Uniform allocation across heavily skewed distributions wastes capital; tiering operations by high-yield drivers optimizes operational leverage.",
         })
 
@@ -191,9 +213,9 @@ def build_strategic_recommendations(metrics: dict[str, Any]) -> list[dict[str, s
     if ml_readiness.get("zero_variance_columns"):
         zv = ml_readiness["zero_variance_columns"][0]
         actions.append({
-            "title": f"Prune uninformative zero-variance column `{zv['column']}`",
-            "recommended_action": zv["recommendation"],
-            "data_justification": f"`{zv['column']}` is completely constant across all evaluated records.",
+            "title": f"Prune uninformative zero-variance column `{zv.get('column')}`",
+            "recommended_action": zv.get("recommendation", "Drop feature before modeling."),
+            "data_justification": f"`{zv.get('column')}` is completely constant across all evaluated records.",
             "business_reason": "Features with zero variance provide zero mutual information and add unnecessary complexity to downstream pipelines.",
         })
 
@@ -203,10 +225,11 @@ def build_strategic_recommendations(metrics: dict[str, Any]) -> list[dict[str, s
         affected = [(column, value) for column, value in outliers.items() if value]
         if affected:
             column, count = max(affected, key=lambda item: item[1])
+            count_str = f"{count:,}" if isinstance(count, (int, float)) else str(count)
             actions.append({
                 "title": f"Investigate IQR outliers in `{column}`",
-                "recommended_action": f"Review the {count:,} IQR-flagged rows in `{column}` and document whether they are valid extremes or data-quality errors.",
-                "data_justification": f"IQR profiling identified {count:,} outlier values in `{column}`.",
+                "recommended_action": f"Review the {count_str} IQR-flagged rows in `{column}` and document whether they are valid extremes or data-quality errors.",
+                "data_justification": f"IQR profiling identified {count_str} outlier values in `{column}`.",
                 "business_reason": "Unreviewed extremes can disproportionately influence averages, forecasts, thresholds, and resource planning.",
             })
 
@@ -218,10 +241,12 @@ def build_strategic_recommendations(metrics: dict[str, Any]) -> list[dict[str, s
     ]
     if significant:
         item = significant[0]
+        stat_str = _format_float(item.get("statistic"), ".4f", fallback="—")
+        pval_str = _format_float(item.get("p_value"), ".4f", fallback="—")
         actions.append({
             "title": "Validate significant group differences",
-            "recommended_action": f"Segment the `{item['numeric']}` process by `{item['categorical']}` and run a domain review of the group-level drivers.",
-            "data_justification": f"{item['test']} returned statistic {item['statistic']:.4f} with p-value {item['p_value']:.4f}.",
+            "recommended_action": f"Segment the `{item.get('numeric')}` process by `{item.get('categorical')}` and run a domain review of the group-level drivers.",
+            "data_justification": f"{item.get('test')} returned statistic {stat_str} with p-value {pval_str}.",
             "business_reason": "A statistically significant group difference indicates that one pooled average may hide materially different segment behavior.",
         })
 
@@ -229,10 +254,13 @@ def build_strategic_recommendations(metrics: dict[str, Any]) -> list[dict[str, s
     relationships = non_graphical.get("multivariate", {}).get("strongest_numeric_relationships", [])
     if relationships and not any("multicollinearity" in a["title"].lower() for a in actions):
         item = relationships[0]
+        cols = item.get("columns", ["feature_1", "feature_2"])
+        r_str = _format_float(item.get("pearson_r"), ".4f", fallback="—")
+        abs_str = _format_float(item.get("absolute_r"), ".4f", fallback="—")
         actions.append({
             "title": "Validate the strongest numeric relationship",
-            "recommended_action": f"Review the relationship between `{item['columns'][0]}` and `{item['columns'][1]}` for leakage, shared definitions, and plausible domain drivers.",
-            "data_justification": f"Pearson correlation is {item['pearson_r']:.4f} (absolute value {item['absolute_r']:.4f}).",
+            "recommended_action": f"Review the relationship between `{cols[0]}` and `{cols[1]}` for leakage, shared definitions, and plausible domain drivers.",
+            "data_justification": f"Pearson correlation is {r_str} (absolute value {abs_str}).",
             "business_reason": "Strong association can reveal duplicated measures, process dependencies, or useful monitoring pairs, but it does not prove causation.",
         })
 
@@ -347,7 +375,7 @@ def markdown_report(
         lines.extend([
             '> [!NOTE]',
             f'> **Deterministic Data Health Score: {health_score}/100 ({grade})**',
-            f"> - Completeness: {sub_scores.get('completeness', 100)}% | Uniqueness: {sub_scores.get('uniqueness', 100)}% | Outlier Control: {sub_scores.get('outlier_control', 100)}% | Type Validity: {sub_scores.get('type_consistency', 100)}%",
+            f"> - Completeness: {_format_pct(sub_scores.get('completeness'), 100.0)} | Uniqueness: {_format_pct(sub_scores.get('uniqueness'), 100.0)} | Outlier Control: {_format_pct(sub_scores.get('outlier_control'), 100.0)} | Type Validity: {_format_pct(sub_scores.get('type_consistency'), 100.0)}",
             f"> - *{health.get('rating_description', 'Deterministic evaluation from raw data.')}*",
             '',
         ])
@@ -357,9 +385,10 @@ def markdown_report(
         for a in severe_missing[:2]:
             warn_bullets.append(f"> - High-risk missingness ({a['severity'].upper()}): `{a['column']}` has {a['missing_pct']}% null values ({a['missing_count']:,} records). {a['recommended_strategy']}")
         for f in ml_readiness.get("multicollinearity_flags", [])[:2]:
-            warn_bullets.append(f"> - Multicollinearity: `{f['feature_1']}` and `{f['feature_2']}` (Pearson r = {f['pearson_r']:.3f}).")
+            r_str = _format_float(f.get('pearson_r'), '.3f', fallback='high')
+            warn_bullets.append(f"> - Multicollinearity: `{f.get('feature_1')}` and `{f.get('feature_2')}` (Pearson r = {r_str}).")
         for z in ml_readiness.get("zero_variance_columns", [])[:2]:
-            warn_bullets.append(f"> - Zero-variance column: `{z['column']}` (constant values across all rows).")
+            warn_bullets.append(f"> - Zero-variance column: `{z.get('column')}` (constant values across all rows).")
         lines.extend([
             '> [!WARNING]',
             '> **Data Quality & ML Modeling Readiness Warnings:**',
@@ -578,18 +607,24 @@ def html_report(
     missing_alerts = business.get("missingness_alerts", [])
     severe_missing = [a for a in missing_alerts if a.get("severity") in {"critical", "high"}]
     for a in severe_missing[:2]:
+        missing_count_str = f"{(a.get('missing_count') or 0):,}"
+        missing_pct_str = _format_pct(a.get('missing_pct'))
+        strat = _text(a.get('recommended_strategy', 'Define documented imputation strategy.'))
         ml_warnings.append(
-            f"<div class=\"alert-pill alert-danger\"><strong>High-Risk Missingness ({_text(a['severity'].upper())}):</strong> Feature <code>{_text(a['column'])}</code> has {a['missing_pct']}% null values ({a['missing_count']:,} rows). {_text(a['recommended_strategy'])}</div>"
+            f"<div class=\"alert-pill alert-danger\"><strong>High-Risk Missingness ({_text((a.get('severity') or 'high').upper())}):</strong> Feature <code>{_text(a.get('column'))}</code> has {missing_pct_str} null values ({missing_count_str} rows). {strat}</div>"
         )
     if ml_readiness.get("multicollinearity_flags"):
         for f in ml_readiness["multicollinearity_flags"][:2]:
+            r_str = _format_float(f.get('pearson_r'), '.3f', fallback='high')
+            rec = _text(f.get('recommendation', 'Address correlation before linear modeling.'))
             ml_warnings.append(
-                f"<div class=\"alert-pill alert-warn\"><strong>Multicollinearity Flag:</strong> {_text(f['feature_1'])} &amp; {_text(f['feature_2'])} (|r| = {_number(f['pearson_r'])} &gt; 0.85). {_text(f['recommendation'])}</div>"
+                f"<div class=\"alert-pill alert-warn\"><strong>Multicollinearity Flag:</strong> {_text(f.get('feature_1'))} &amp; {_text(f.get('feature_2'))} (|r| = {r_str} &gt; 0.85). {rec}</div>"
             )
     if ml_readiness.get("zero_variance_columns"):
         for z in ml_readiness["zero_variance_columns"][:2]:
+            rec = _text(z.get('recommendation', 'Drop feature before modeling.'))
             ml_warnings.append(
-                f"<div class=\"alert-pill alert-warn\"><strong>Zero-Variance Feature:</strong> Column <code>{_text(z['column'])}</code> contains zero variance. {_text(z['recommendation'])}</div>"
+                f"<div class=\"alert-pill alert-warn\"><strong>Zero-Variance Feature:</strong> Column <code>{_text(z.get('column'))}</code> contains zero variance. {rec}</div>"
             )
 
     return f"""<!doctype html>
@@ -1251,19 +1286,19 @@ figcaption {{
       <div class="subscores-bar">
         <div class="subscore-item">
           <small>Completeness</small>
-          <strong>{sub_scores.get('completeness', 100):.1f}%</strong>
+          <strong>{_format_pct(sub_scores.get('completeness'), 100.0)}</strong>
         </div>
         <div class="subscore-item">
           <small>Uniqueness</small>
-          <strong>{sub_scores.get('uniqueness', 100):.1f}%</strong>
+          <strong>{_format_pct(sub_scores.get('uniqueness'), 100.0)}</strong>
         </div>
         <div class="subscore-item">
           <small>Outlier Control</small>
-          <strong>{sub_scores.get('outlier_control', 100):.1f}%</strong>
+          <strong>{_format_pct(sub_scores.get('outlier_control'), 100.0)}</strong>
         </div>
         <div class="subscore-item">
           <small>Type Consistency</small>
-          <strong>{sub_scores.get('type_consistency', 100):.1f}%</strong>
+          <strong>{_format_pct(sub_scores.get('type_consistency'), 100.0)}</strong>
         </div>
       </div>
     </div>

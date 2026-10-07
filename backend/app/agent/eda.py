@@ -568,8 +568,8 @@ def _calculate_data_health_score(
         dup_rate = duplicate_rows / row_count
         uniqueness_score = round(max(0.0, min(100.0, (1.0 - dup_rate) * 100.0)), 1)
 
-    total_numeric_values = sum(numeric_summary[c].get("count", 0) for c in numeric)
-    total_iqr_outliers = sum(numeric_summary[c].get("outlier_count_iqr", 0) for c in numeric)
+    total_numeric_values = sum(numeric_summary.get(c, {}).get("count", 0) for c in numeric)
+    total_iqr_outliers = sum(numeric_summary.get(c, {}).get("outlier_count_iqr", 0) for c in numeric)
     if total_numeric_values == 0:
         outlier_score = 100.0
     else:
@@ -579,14 +579,15 @@ def _calculate_data_health_score(
     penalties = 0.0
     zero_var_cols = []
     for c in numeric:
-        std = numeric_summary[c].get("std")
-        val_min = numeric_summary[c].get("min")
-        val_max = numeric_summary[c].get("max")
-        if (std == 0.0 or (val_min is not None and val_min == val_max)) and numeric_summary[c].get("count", 0) > 1:
+        num_meta = numeric_summary.get(c, {})
+        std = num_meta.get("std")
+        val_min = num_meta.get("min")
+        val_max = num_meta.get("max")
+        if (std == 0.0 or (val_min is not None and val_min == val_max)) and num_meta.get("count", 0) > 1:
             zero_var_cols.append(c)
             penalties += 15.0
     for c in categorical:
-        uniq = categorical_summary[c].get("unique", 0)
+        uniq = categorical_summary.get(c, {}).get("unique", 0)
         if uniq <= 1 and row_count > 1:
             penalties += 10.0
     if row_count > 0:
@@ -656,13 +657,6 @@ def _pareto_analysis(df: pl.DataFrame, numeric: list[str]) -> dict[str, Any]:
             candidates.append((score, c))
 
     if not candidates:
-        for c in numeric:
-            s = df.get_column(c).drop_nulls()
-            if s.len() > 0 and (s >= 0).sum() / s.len() >= 0.95 and (s.sum() or 0) > 0:
-                candidates.append((1, c))
-                break
-
-    if not candidates:
         return {
             "applicable": False,
             "reason": "No positive volume or financial candidate column found."
@@ -692,7 +686,7 @@ def _pareto_analysis(df: pl.DataFrame, numeric: list[str]) -> dict[str, Any]:
     cum_series = sorted_vals[target_col].cum_sum()
     target_80 = total_val * 0.80
 
-    rows_for_80 = min(n, int((cum_series < target_80).sum()) + 1)
+    rows_for_80 = min(n, int((cum_series < target_80).sum() or 0) + 1)
     pct_rows_for_80 = round(min(100.0, max(0.0, (rows_for_80 / n) * 100.0)), 1)
 
     top_20_count = min(n, max(1, int(n * 0.20)))

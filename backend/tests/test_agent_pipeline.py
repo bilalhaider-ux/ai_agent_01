@@ -14,13 +14,18 @@ from pathlib import Path
 # Add project root to sys.path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from app.agent.minifier import minify_dataset
-from app.agent.executor import execute_sandboxed_code
-from app.agent.graph import build_data_agent_graph, route_execution, route_retry
-from app.agent.contracts import DatasetMinifiedContext, ExecutionResult
-from app.agent.nodes import _clean_code_fences
+try:
+    from app.agent.minifier import minify_dataset
+    from app.agent.executor import execute_sandboxed_code
+    from app.agent.graph import build_data_agent_graph, route_execution, route_retry
+    from app.agent.contracts import DatasetMinifiedContext, ExecutionResult
+    from app.agent.nodes import _clean_code_fences
+    HAS_PIPELINE_DEPS = True
+except ImportError:
+    HAS_PIPELINE_DEPS = False
 
 
+@unittest.skipUnless(HAS_PIPELINE_DEPS, "polars, langgraph, or agent pipeline dependencies not installed")
 class TestAgentPipeline(unittest.TestCase):
     def setUp(self):
         self.dataset_path = str(Path(__file__).parent.parent / "data" / "sample_sales_data.csv")

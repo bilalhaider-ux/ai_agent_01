@@ -306,6 +306,79 @@ class TestReportService(unittest.TestCase):
         self.assertIn("Histogram: total_revenue", md)
         self.assertIn("Histogram: total_revenue", html_doc)
 
+    def test_sub_scores_none_values_in_html_and_markdown(self):
+        """Verify that None values in data health sub_scores do not cause formatting exceptions."""
+        metrics_with_none_subscores = {
+            "exploratory_data_analysis": {
+                "non_graphical": {
+                    "data_health": {
+                        "score": 85.0,
+                        "grade": "Good",
+                        "rating_description": "Clean data with partial flags.",
+                        "sub_scores": {
+                            "completeness": None,
+                            "uniqueness": None,
+                            "outlier_control": None,
+                            "type_consistency": None,
+                        },
+                    },
+                }
+            }
+        }
+        # Neither should raise TypeError: unsupported format string passed to NoneType.__format__
+        html_doc = html_report(self.mock_synthesis, metrics_with_none_subscores, [])
+        md = markdown_report(self.mock_synthesis, metrics_with_none_subscores, [])
+        self.assertIn("Data Health &amp; Integrity Audit", html_doc)
+        self.assertIn("100.0%", html_doc)
+        self.assertIn("Deterministic Data Health Score: 85.0/100", md)
+
+    def test_multivariate_and_stat_tests_none_values(self):
+        """Verify recommendations and report generation when correlation, statistic, or p-value is None."""
+        metrics_with_none_stats = {
+            "exploratory_data_analysis": {
+                "non_graphical": {
+                    "business_insights": {
+                        "ml_readiness": {
+                            "multicollinearity_flags": [
+                                {"feature_1": "feat_a", "feature_2": "feat_b", "pearson_r": None}
+                            ]
+                        },
+                        "pareto_analysis": {
+                            "applicable": True,
+                            "is_pareto": True,
+                            "column": "sales",
+                            "total_volume": None,
+                            "top_20_pct_volume_share": None,
+                            "pct_records_generating_80_pct": None,
+                        },
+                    },
+                    "statistical_tests": {
+                        "categorical_numeric_tests": [
+                            {
+                                "categorical": "grp",
+                                "numeric": "val",
+                                "test": "Welch t-test",
+                                "statistic": None,
+                                "p_value": None,
+                                "significant_at_0_05": True,
+                            }
+                        ]
+                    },
+                    "multivariate": {
+                        "strongest_numeric_relationships": [
+                            {"columns": ["x", "y"], "pearson_r": None, "absolute_r": None}
+                        ]
+                    },
+                }
+            }
+        }
+        actions = build_strategic_recommendations(metrics_with_none_stats)
+        self.assertTrue(len(actions) > 0)
+        md = markdown_report(self.mock_synthesis, metrics_with_none_stats, [])
+        html_doc = html_report(self.mock_synthesis, metrics_with_none_stats, [])
+        self.assertIn("DataSnap", html_doc)
+        self.assertIn("Multicollinearity", md)
+
 
 if __name__ == "__main__":
     unittest.main()

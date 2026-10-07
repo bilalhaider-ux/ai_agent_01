@@ -251,6 +251,50 @@ class TestEdaBusiness(unittest.TestCase):
         errors = validate_metric_contract(metrics)
         self.assertEqual(errors, [])
 
+    def test_data_health_score_missing_columns_in_summaries(self):
+        """Verify _calculate_data_health_score does not raise KeyError when summaries omit columns."""
+        mock_df = MagicMock()
+        mock_df.height = 50
+        mock_df.width = 3
+        mock_df.columns = ["col1", "col2", "col3"]
+
+        col_mock = MagicMock()
+        col_mock.null_count.return_value = 0
+        mock_df.get_column.return_value = col_mock
+
+        # numeric column col1 is present in numeric list, but numeric_summary is completely empty!
+        numeric = ["col1"]
+        categorical = ["col2"]
+        score_res = _calculate_data_health_score(
+            mock_df,
+            numeric,
+            categorical,
+            numeric_summary={},  # intentionally empty to test KeyError protection
+            categorical_summary={},  # intentionally empty to test KeyError protection
+            duplicate_rows=0,
+        )
+        self.assertIn("score", score_res)
+        self.assertIn("sub_scores", score_res)
+        self.assertEqual(score_res["score"], 98.0)
+
+    def test_fallback_basemodel_nested_model_coercion_and_deep_dump(self):
+        """Verify fallback BaseModel coerces dictionary kwargs to nested model and dumps recursively."""
+        from app.agent.contracts import DataHealthScore, DataHealthSubScores
+
+        # Instantiate with a dict for sub_scores instead of an instance
+        health = DataHealthScore(
+            score=95.0,
+            grade="Excellent",
+            rating_description="High quality",
+            sub_scores={"completeness": 99.0, "uniqueness": 100.0, "outlier_control": 95.0, "type_consistency": 98.0},
+        )
+        self.assertIsInstance(health.sub_scores, DataHealthSubScores)
+        self.assertEqual(health.sub_scores.completeness, 99.0)
+
+        dumped = health.model_dump()
+        self.assertIsInstance(dumped["sub_scores"], dict)
+        self.assertEqual(dumped["sub_scores"]["completeness"], 99.0)
+
 
 if __name__ == "__main__":
     unittest.main()
