@@ -1056,6 +1056,108 @@ pre, code { white-space: pre-wrap; overflow-wrap: anywhere; word-break: break-wo
   line-height: 1.6;
 }
 
+/* ------------------------------------------- Pricing Coming Soon Modal -- */
+.pricing-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(11, 14, 20, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.pricing-modal {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 30px 28px 24px;
+  box-shadow: var(--shadow-pop);
+}
+
+.pricing-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--text-dim);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+.pricing-modal-close:hover {
+  color: var(--text);
+  border-color: var(--accent);
+}
+
+.pricing-modal-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-line);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--accent-strong);
+  margin-bottom: 14px;
+}
+
+.pricing-modal-title {
+  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.pricing-modal-desc {
+  margin: 0 0 18px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-soft);
+}
+.pricing-modal-desc strong {
+  color: var(--text);
+}
+
+.pricing-modal-plan-box {
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 22px;
+}
+
+.pricing-modal-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.pricing-modal-actions .primary-cta {
+  flex: 1;
+  justify-content: center;
+}
+.pricing-modal-actions .outline-button {
+  padding: 0 18px;
+  height: 42px;
+}
+
 /* CTA band */
 .cta-band {
   position: relative;
@@ -2418,6 +2520,7 @@ textarea:focus-visible,
   .aurora,
   .scroll-progress,
   .toast,
+  .pricing-modal-backdrop,
   .scrim,
   .sidebar,
   button,

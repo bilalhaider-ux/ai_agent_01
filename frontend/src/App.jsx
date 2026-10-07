@@ -554,9 +554,104 @@ function LegalPage({ doc, onBack, onNavigate }) {
 }
 
 
+function PricingComingSoonModal({ plan, onClose, onStart }) {
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [onClose])
+
+  return (
+    <div
+      className="pricing-modal-backdrop"
+      onClick={onClose}
+      role="presentation"
+    >
+      <motion.div
+        className="pricing-modal"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="pricing-modal-title"
+        aria-describedby="pricing-modal-desc"
+        initial={{ opacity: 0, scale: 0.94, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 12 }}
+        transition={{ duration: 0.25, ease: easeOut }}
+      >
+        <button
+          type="button"
+          className="pricing-modal-close"
+          onClick={onClose}
+          aria-label="Close dialog"
+        >
+          <X size={16} />
+        </button>
+
+        <div className="pricing-modal-badge">
+          <span className="pulse-dot" />
+          <span>PUBLIC BETA · COMING SOON</span>
+        </div>
+
+        <h3 id="pricing-modal-title" className="pricing-modal-title">
+          {plan.name} Tier is launching soon
+        </h3>
+
+        <p id="pricing-modal-desc" className="pricing-modal-desc">
+          We are currently in active public beta. You don't need a paid plan today — <strong>100% of DataSnap’s comprehensive statistical profiling, chart generation, and executive A4 PDF exports are free to explore</strong>.
+        </p>
+
+        <div className="pricing-modal-plan-box">
+          <div className="flex items-center justify-between">
+            <strong className="text-[14px] font-semibold text-ink">{plan.name} Features</strong>
+            <span className="font-mono text-[11px] font-semibold text-brand">{pkr(plan.monthly)} / mo</span>
+          </div>
+          <ul className="mt-2.5 space-y-1.5">
+            {plan.features.map((f) => (
+              <li key={f} className="flex items-center gap-2 text-[12.5px] text-ink-soft">
+                <Check size={14} className="text-ok shrink-0" />
+                <span>{f}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="pricing-modal-actions">
+          <button
+            type="button"
+            className="primary-cta"
+            onClick={onStart}
+          >
+            <Sparkles size={15} /> Continue with Free Beta
+          </button>
+          <button
+            type="button"
+            className="outline-button"
+            onClick={onClose}
+          >
+            Close
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  )
+}
+
 /* --------------------------------------------------------------- Pricing -- */
 function Pricing({ onStart }) {
   const [yearly, setYearly] = useState(false)
+  const [activePlanModal, setActivePlanModal] = useState(null)
+
+  const handlePlanClick = (plan) => {
+    if (plan.monthly === 0) {
+      onStart()
+    } else {
+      setActivePlanModal(plan)
+    }
+  }
+
   return (
     <section className="section pricing" id="pricing">
       <motion.div className="section-head center" {...fadeUpView}>
@@ -615,7 +710,11 @@ function Pricing({ onStart }) {
 
               <p className="pricing-blurb">{plan.blurb}</p>
 
-              <button className={plan.popular ? 'pricing-cta primary' : 'pricing-cta'} onClick={onStart}>
+              <button
+                type="button"
+                className={plan.popular ? 'pricing-cta primary' : 'pricing-cta'}
+                onClick={() => handlePlanClick(plan)}
+              >
                 {plan.cta}
               </button>
 
@@ -630,6 +729,19 @@ function Pricing({ onStart }) {
       </motion.div>
 
       <p className="pricing-note">Prices in PKR. {`Yearly plans are billed annually at the discounted rate.`} The free Starter tier needs no account.</p>
+
+      <AnimatePresence>
+        {activePlanModal && (
+          <PricingComingSoonModal
+            plan={activePlanModal}
+            onClose={() => setActivePlanModal(null)}
+            onStart={() => {
+              setActivePlanModal(null)
+              onStart()
+            }}
+          />
+        )}
+      </AnimatePresence>
     </section>
   )
 }
