@@ -32,7 +32,7 @@ class AnalysisJobStore:
 
     def _write(self, record: dict[str, Any]) -> None:
         if self._redis:
-            payload = base64.b64encode(zlib.compress(json.dumps(record).encode("utf-8"), level=6)).decode("ascii")
+            payload = base64.b64encode(zlib.compress(json.dumps(record).encode("utf-8"), level=4)).decode("ascii")
             self._redis.set(self._key(record["analysis_id"]), f"z:{payload}", ex=self._ttl)
             return
         with _LOCAL_LOCK:

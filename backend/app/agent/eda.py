@@ -36,9 +36,10 @@ def _read_dataset(path: Path) -> pl.DataFrame:
 def _chart_base64() -> str:
     buffer = io.BytesIO()
     plt.tight_layout()
-    plt.savefig(buffer, format="png", dpi=120)
+    plt.savefig(buffer, format="png", dpi=100)
     plt.close()
     return base64.b64encode(buffer.getvalue()).decode("ascii")
+
 
 
 def _finite(value: Any) -> Any:
@@ -84,21 +85,22 @@ def _bivariate_analysis(
     eval_numeric = numeric[:15]
     for index, first in enumerate(eval_numeric):
         for second in eval_numeric[index + 1:]:
-            values = df.select([first, second]).drop_nulls().head(100_000)
+            values = df.select([first, second]).drop_nulls()
             if values.height < 3:
                 continue
+            if values.height > 25_000:
+                values = values.head(25_000)
             x_raw = values[first].to_list()
             y_raw = values[second].to_list()
-            # Filter finite pairs
-            pairs = [
-                (float(a), float(b))
-                for a, b in zip(x_raw, y_raw)
-                if _finite(a) is not None and _finite(b) is not None
-            ]
-            if len(pairs) < 3:
+            x = []
+            y = []
+            for a, b in zip(x_raw, y_raw):
+                fa, fb = _finite(a), _finite(b)
+                if fa is not None and fb is not None:
+                    x.append(fa)
+                    y.append(fb)
+            if len(x) < 3:
                 continue
-            x = [p[0] for p in pairs]
-            y = [p[1] for p in pairs]
             pearson = None
             spearman = None
             if len(set(x)) > 1 and len(set(y)) > 1:
@@ -112,7 +114,7 @@ def _bivariate_analysis(
                     spearman = None
             numeric_pairs.append({
                 "columns": [first, second],
-                "count": len(pairs),
+                "count": len(x),
                 "pearson_r": _finite(pearson.statistic) if pearson else None,
                 "pearson_p_value": _finite(pearson.pvalue) if pearson else None,
                 "spearman_r": _finite(spearman.statistic) if spearman else None,
@@ -188,12 +190,15 @@ def _statistical_tests(
     categorical_numeric: list[dict[str, Any]] = []
     for category in categorical[:8]:
         for measure in numeric[:8]:
-            groups: dict[str, list[float]] = defaultdict(list)
-            for row in df.select([category, measure]).drop_nulls().iter_rows():
-                val = _finite(row[1])
-                if val is not None:
-                    groups[str(row[0])].append(val)
-            usable = [values for values in groups.values() if len(values) >= 2]
+            clean = df.select([category, measure]).drop_nulls()
+            if clean.is_empty():
+                continue
+            grouped = clean.group_by(category, maintain_order=True).agg(pl.col(measure))
+            usable = []
+            for vals in grouped[measure].to_list():
+                clean_vals = [float(v) for v in vals if _finite(v) is not None]
+                if len(clean_vals) >= 2:
+                    usable.append(clean_vals)
             if len(usable) < 2:
                 continue
             if len(usable) == 2:
@@ -223,18 +228,23 @@ def _statistical_tests(
     categorical_pairs: list[dict[str, Any]] = []
     for index, first in enumerate(categorical[:8]):
         for second in categorical[index + 1:8]:
-            counts: dict[tuple[str, str], int] = defaultdict(int)
-            first_values: set[str] = set()
-            second_values: set[str] = set()
-            for left, right in df.select([first, second]).drop_nulls().iter_rows():
-                left_key, right_key = str(left), str(right)
-                counts[(left_key, right_key)] += 1
-                first_values.add(left_key)
-                second_values.add(right_key)
+            clean = df.select([first, second]).drop_nulls()
+            if clean.is_empty():
+                continue
+            pair_counts = (
+                clean.group_by([first, second], maintain_order=True)
+                .agg(pl.len().alias("count"))
+            )
+            first_values = list(dict.fromkeys(str(v) for v in pair_counts[first].to_list()))
+            second_values = list(dict.fromkeys(str(v) for v in pair_counts[second].to_list()))
             if len(first_values) < 2 or len(second_values) < 2:
                 continue
+            counts = {
+                (str(r[0]), str(r[1])): int(r[2])
+                for r in pair_counts.iter_rows()
+            }
             table = [
-                [counts[(left, right)] for right in second_values]
+                [counts.get((left, right), 0) for right in second_values]
                 for left in first_values
             ]
             try:

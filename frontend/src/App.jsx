@@ -354,7 +354,7 @@ export default function App() {
     if (!query.trim()) return setError('Add an optional EDA focus or use the comprehensive default.')
     setRunning(true); setError(''); setStep(0)
     const payload = new FormData(); payload.append('query', query.trim()); payload.append('dataset', file); payload.append('provider', 'gemini')
-    const timer = setInterval(() => setStep(current => Math.min(current + 1, STEPS.length - 1)), 1500)
+    const timer = setInterval(() => setStep(current => Math.min(current + 1, STEPS.length - 1)), 2600)
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), INITIAL_REQUEST_TIMEOUT_MS)
     try {
@@ -378,7 +378,6 @@ export default function App() {
         const statusBody = statusType.includes('application/json') ? await statusResponse.json() : null
         if (!statusResponse.ok) throw new Error(statusBody?.detail || `Analysis status returned HTTP ${statusResponse.status}.`)
         job = statusBody
-        if (job.status === 'running') setStep(current => Math.min(current + 1, STEPS.length - 1))
       }
       if (job.status === 'failed') throw new Error(job.error?.message || 'The analysis worker failed. Check the backend logs.')
       setReport(job); navigate('report', job.analysis_id)
